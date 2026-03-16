@@ -19,109 +19,197 @@ export default function EmailEditor({ hrEmail: initHrEmail, subject: initSubject
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
+      style={{ background: "rgba(0,0,0,0.5)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-2xl rounded-2xl p-6 flex flex-col gap-4 fade-in"
+        className="w-full max-w-2xl flex flex-col fade-in"
         style={{
-          background: "#13131f",
-          border: "1px solid var(--border-hover)",
+          background: "#ffffff",
+          border: "1px solid #dadce0",
+          boxShadow: "0 8px 32px rgba(60,64,67,0.28)",
           maxHeight: "90vh",
           overflow: "auto",
+          borderRadius: 8,
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
-              ✏️ Edit Cover Email
-            </h2>
-            <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
-              {jobTitle}
-            </p>
-          </div>
+        {/* Gmail Compose Header */}
+        <div
+          style={{
+            background: "#404040",
+            padding: "10px 16px",
+            borderRadius: "8px 8px 0 0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <span style={{ color: "#fff", fontSize: 14, fontWeight: 500, fontFamily: '"Google Sans", Roboto, sans-serif' }}>
+            New Message — {jobTitle}
+          </span>
           <button
             onClick={onClose}
-            className="text-xl hover:text-white transition-colors"
-            style={{ color: "var(--text-muted)" }}
+            style={{
+              color: "#ffffffcc",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 18,
+              lineHeight: 1,
+              padding: "2px 4px",
+              borderRadius: 2,
+            }}
           >
             ✕
           </button>
         </div>
 
-        {/* HR Email */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-            HR Email Address
-          </label>
-          <input
-            value={hrEmail}
-            onChange={(e) => setHrEmail(e.target.value)}
-            placeholder="hr@company.com"
-            className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid var(--border)",
-              color: "var(--text-primary)",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-          />
-        </div>
+        {/* Compose fields — Gmail style */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
 
-        {/* Subject */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-            Subject
-          </label>
-          <input
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+          {/* To field */}
+          <div
             style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid var(--border)",
-              color: "var(--text-primary)",
+              display: "flex",
+              alignItems: "center",
+              padding: "8px 0 8px 16px",
+              borderBottom: "1px solid #e0e0e0",
             }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-          />
-        </div>
+          >
+            <span style={{ fontSize: 13, color: "#5f6368", width: 48, flexShrink: 0, fontFamily: '"Google Sans", Roboto, sans-serif' }}>
+              To
+            </span>
+            <input
+              value={hrEmail}
+              onChange={e => setHrEmail(e.target.value)}
+              placeholder="recipient@company.com"
+              style={{
+                flex: 1,
+                fontSize: 14,
+                color: "#202124",
+                background: "none",
+                border: "none",
+                outline: "none",
+                fontFamily: '"Google Sans", Roboto, sans-serif',
+                padding: "2px 8px",
+              }}
+            />
+          </div>
 
-        {/* Body */}
-        <div className="flex flex-col gap-1.5 flex-1">
-          <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-            Email Body
-          </label>
+          {/* Subject field */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "8px 0 8px 16px",
+              borderBottom: "1px solid #e0e0e0",
+            }}
+          >
+            <span style={{ fontSize: 13, color: "#5f6368", width: 48, flexShrink: 0, fontFamily: '"Google Sans", Roboto, sans-serif' }}>
+              Subject
+            </span>
+            <input
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              style={{
+                flex: 1,
+                fontSize: 14,
+                color: "#202124",
+                background: "none",
+                border: "none",
+                outline: "none",
+                fontFamily: '"Google Sans", Roboto, sans-serif',
+                padding: "2px 8px",
+              }}
+            />
+          </div>
+
+          {/* Body */}
           <textarea
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={e => setBody(e.target.value)}
             rows={16}
-            className="w-full rounded-xl px-4 py-3 text-sm leading-relaxed outline-none transition-all resize-none"
             style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid var(--border)",
-              color: "var(--text-primary)",
-              fontFamily: "inherit",
+              flex: 1,
+              width: "100%",
+              padding: "16px",
+              fontSize: 14,
+              lineHeight: 1.7,
+              color: "#202124",
+              background: "none",
+              border: "none",
+              outline: "none",
+              resize: "none",
+              fontFamily: '"Roboto", "Google Sans", sans-serif',
             }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
           />
-        </div>
 
-        {/* Actions */}
-        <div className="flex gap-3 justify-end">
-          <button className="btn-ghost" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="btn-primary"
-            onClick={() => onSave(hrEmail, subject, body)}
-            disabled={!subject.trim() || !body.trim() || !hrEmail.trim()}
+          {/* Gmail compose footer */}
+          <div
+            style={{
+              padding: "12px 16px",
+              borderTop: "1px solid #e0e0e0",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "#fff",
+            }}
           >
-            ✓ Save Changes
-          </button>
+            <button
+              className="btn-primary"
+              onClick={() => onSave(hrEmail, subject, body)}
+              disabled={!subject.trim() || !body.trim() || !hrEmail.trim()}
+              style={{ borderRadius: 20, padding: "8px 24px", fontSize: 14, fontWeight: 600 }}
+            >
+              Send
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#5f6368",
+                padding: "8px 12px",
+                borderRadius: 20,
+                fontSize: 14,
+                fontFamily: '"Google Sans", Roboto, sans-serif',
+              }}
+            >
+              Cancel
+            </button>
+            {/* Attachment indicator */}
+            <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "#5f6368",
+                  background: "#f1f3f4",
+                  borderRadius: 12,
+                  padding: "3px 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                📎 Resume.pdf
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "#5f6368",
+                  background: "#f1f3f4",
+                  borderRadius: 12,
+                  padding: "3px 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                📎 Cover Letter.pdf
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

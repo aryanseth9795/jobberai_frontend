@@ -1,155 +1,565 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════
+   GOOGLE / GMAIL — DESIGN TOKENS (White Theme)
+═══════════════════════════════════════════ */
 :root {
-  --bg-primary: #0a0a0f;
-  --bg-card: rgba(255, 255, 255, 0.04);
-  --bg-card-hover: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --accent-glow: rgba(99, 102, 241, 0.25);
-  --success: #10b981;
-  --success-glow: rgba(16, 185, 129, 0.2);
-  --danger: #ef4444;
-  --danger-glow: rgba(239, 68, 68, 0.2);
-  --warning: #f59e0b;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #475569;
+  /* Backgrounds */
+  --bg-primary:     #f6f8fc;
+  --bg-secondary:   #ffffff;
+  --bg-card:        #ffffff;
+  --bg-card-hover:  #f1f3f4;
+  --bg-sidebar:     #f6f8fc;
+
+  /* Borders */
+  --border:         #dadce0;
+  --border-hover:   #bdc1c6;
+  --border-active:  #1a73e8;
+
+  /* Google Blue accent */
+  --accent:         #1a73e8;
+  --accent-hover:   #1557b0;
+  --accent-light:   #e8f0fe;
+  --accent-glow:    rgba(26, 115, 232, 0.1);
+
+  /* Status */
+  --success:        #1e8e3e;
+  --success-bg:     #e6f4ea;
+  --success-border: #34a853;
+  --danger:         #c5221f;
+  --danger-bg:      #fce8e6;
+  --danger-border:  #ea4335;
+  --warning:        #b06000;
+  --warning-bg:     #fef7e0;
+  --warning-border: #fbbc04;
+
+  /* Text */
+  --text-primary:   #202124;
+  --text-secondary: #5f6368;
+  --text-muted:     #80868b;
+  --text-hud:       #1a73e8;
+
+  /* Gmail/Google specifics */
+  --gmail-bg:       #f6f8fc;
+  --gmail-surface:  #ffffff;
+  --gmail-blue:     #1a73e8;
+  --gmail-red:      #ea4335;
+  --gmail-border:   #e0e0e0;
+  --gmail-avatar:   #1a73e8;
+  --shadow-sm:      0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+  --shadow-md:      0 1px 3px rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
+  --shadow-lg:      0 2px 6px rgba(60,64,67,.3), 0 6px 18px 6px rgba(60,64,67,.15);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
+/* ═══════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════ */
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
-  font-family: "Inter", sans-serif;
+  font-family: "Google Sans", "Roboto", "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+::-webkit-scrollbar-track { background: #f1f3f4; }
+::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
 
-/* Glass card */
-.glass-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  backdrop-filter: blur(12px);
-  transition: all 0.2s ease;
-}
-.glass-card:hover {
-  border-color: var(--border-hover);
-  background: var(--bg-card-hover);
+/* ═══════════════════════════════════════════
+   NO HUD BACKGROUND (white page instead)
+═══════════════════════════════════════════ */
+.hud-bg { display: none; }
+.hud-grid,
+.hud-scan-line,
+.hud-vignette,
+.hud-arc-left,
+.hud-arc-right { display: none; }
+
+/* ═══════════════════════════════════════════
+   TYPOGRAPHY
+═══════════════════════════════════════════ */
+.font-hud  { font-family: "Google Sans", "Roboto", sans-serif; }
+.font-mono { font-family: "Roboto Mono", monospace; }
+
+/* Replace jarvis-title with Google-style heading */
+.jarvis-title {
+  font-family: "Google Sans", "Roboto", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  background: none;
+  -webkit-text-fill-color: var(--text-primary);
+  color: var(--text-primary);
+  filter: none;
 }
 
-/* Gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, #6366f1 0%, #a78bfa 50%, #06b6d4 100%);
+  background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Glow button */
-.btn-primary {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 20px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 0 20px var(--accent-glow);
+.hud-label {
+  font-family: "Roboto Mono", "Google Sans", monospace;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
+
+/* ═══════════════════════════════════════════
+   CARDS
+═══════════════════════════════════════════ */
+.hud-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.hud-card::before { display: none; }
+.hud-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Remove corner brackets */
+.hud-bracket::before,
+.hud-bracket::after { display: none; }
+
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease;
+  position: relative;
+}
+.glass-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+/* ═══════════════════════════════════════════
+   BUTTONS — Google Material style
+═══════════════════════════════════════════ */
+.btn-primary {
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 20px;
+  font-family: "Google Sans", "Roboto", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(60,64,67,.3);
+}
+.btn-primary::before { display: none; }
 .btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0 30px var(--accent-glow);
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-sm);
 }
 .btn-primary:disabled {
-  opacity: 0.4;
+  background: #e0e0e0;
+  color: #9e9e9e;
   cursor: not-allowed;
-  transform: none;
+  box-shadow: none;
 }
 
 .btn-success {
-  background: linear-gradient(135deg, #059669, #10b981);
-  color: white;
+  background: #1e8e3e;
+  color: #ffffff;
   border: none;
-  border-radius: 10px;
-  padding: 10px 20px;
-  font-weight: 600;
+  border-radius: 4px;
+  padding: 8px 20px;
+  font-family: "Google Sans", "Roboto", sans-serif;
+  font-weight: 500;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 0 20px var(--success-glow);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(60,64,67,.3);
 }
-.btn-success:hover { transform: translateY(-1px); }
-.btn-success:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-success:hover {
+  background: #137333;
+  box-shadow: var(--shadow-sm);
+}
+.btn-success:disabled {
+  background: #e0e0e0;
+  color: #9e9e9e;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 
 .btn-ghost {
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--accent);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 16px;
+  border-radius: 4px;
+  padding: 7px 16px;
+  font-family: "Google Sans", "Roboto", sans-serif;
   font-weight: 500;
+  font-size: 14px;
+  text-transform: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 .btn-ghost:hover {
-  border-color: var(--border-hover);
-  color: var(--text-primary);
-  background: var(--bg-card);
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-/* Status badges */
+/* ═══════════════════════════════════════════
+   BADGES — Google chip style
+═══════════════════════════════════════════ */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  border-radius: 12px;
+  font-family: "Google Sans", "Roboto", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
-.badge-drafted  { background: rgba(99,102,241,0.15); color: #a78bfa; border: 1px solid rgba(99,102,241,0.3); }
-.badge-duplicate { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
-.badge-error    { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-.badge-approved { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-.badge-rejected { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-.badge-sent     { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-.badge-failed   { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.badge-drafted   { background: #e8f0fe; color: #1a73e8; border: 1px solid #c9d9fa; }
+.badge-duplicate { background: var(--warning-bg); color: var(--warning); border: 1px solid #fce39e; }
+.badge-error     { background: var(--danger-bg); color: var(--danger); border: 1px solid #f5c6c5; }
+.badge-approved  { background: var(--success-bg); color: var(--success); border: 1px solid #a8d5b5; }
+.badge-rejected  { background: var(--danger-bg); color: var(--danger); border: 1px solid #f5c6c5; }
+.badge-sent      { background: var(--success-bg); color: var(--success); border: 1px solid #a8d5b5; }
+.badge-failed    { background: var(--danger-bg); color: var(--danger); border: 1px solid #f5c6c5; }
 
-/* Spinner */
+/* ═══════════════════════════════════════════
+   SPINNER
+═══════════════════════════════════════════ */
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner {
-  width: 20px; height: 20px;
-  border: 2px solid rgba(255,255,255,0.1);
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.spinner-blue {
+  width: 18px; height: 18px;
+  border: 2px solid var(--accent-light);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-/* Fade in */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.fade-in { animation: fadeIn 0.3s ease forwards; }
+/* ═══════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.fade-in { animation: fadeIn 0.25s ease forwards; }
 
-/* Step indicator */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.cursor-blink { animation: blink 1s step-end infinite; }
+
+/* ═══════════════════════════════════════════
+   STEP INDICATOR
+═══════════════════════════════════════════ */
 .step-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: var(--border);
+  background: #e0e0e0;
   transition: all 0.3s ease;
 }
-.step-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-.step-dot.done { background: var(--success); }
+.step-dot.active { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.step-dot.done   { background: var(--success); }
+
+/* ═══════════════════════════════════════════
+   DIVIDER
+═══════════════════════════════════════════ */
+.hud-divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* ═══════════════════════════════════════════
+   AGENT PIPELINE — Google Stepper style
+═══════════════════════════════════════════ */
+.pipeline-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.pipeline-node-dot {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all 0.3s ease;
+  background: #ffffff;
+}
+
+.pipeline-node-dot.idle {
+  border-color: #e0e0e0;
+  color: #9e9e9e;
+  background: #f5f5f5;
+}
+.pipeline-node-dot.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 4px rgba(26,115,232,.12);
+  animation: none;
+}
+.pipeline-node-dot.active::after { display: none; }
+.pipeline-node-dot.done {
+  border-color: var(--success);
+  color: #ffffff;
+  background: var(--success);
+}
+.pipeline-node-dot.error {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.pipeline-connector {
+  height: 2px;
+  flex: 1;
+  background: #e0e0e0;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.4s ease;
+}
+.pipeline-connector.active { background: var(--accent-light); }
+.pipeline-connector.active::after {
+  content: "";
+  position: absolute;
+  left: -100%; top: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: connectorFlow 1.2s ease-in-out infinite;
+}
+.pipeline-connector.done {
+  background: var(--success);
+}
+
+@keyframes connectorFlow {
+  0%   { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* ═══════════════════════════════════════════
+   UPLOAD ZONE — Google Drive style
+═══════════════════════════════════════════ */
+.upload-zone {
+  border: 2px dashed var(--border);
+  background: var(--bg-card);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.upload-zone::before { display: none; }
+.upload-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.upload-zone.dragging {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 4px rgba(26,115,232,.08);
+}
+
+/* ═══════════════════════════════════════════
+   STAT COUNTER
+═══════════════════════════════════════════ */
+.stat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-value {
+  font-family: "Google Sans", "Roboto", sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-primary);
+}
+.stat-label {
+  font-family: "Roboto", sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════
+   LIVE INDICATOR
+═══════════════════════════════════════════ */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.live-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  display: inline-block;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════
+   GMAIL PREVIEW STYLES
+═══════════════════════════════════════════ */
+.gmail-preview {
+  background: #ffffff;
+  border: 1px solid var(--gmail-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: "Roboto", "Google Sans", sans-serif;
+}
+
+.gmail-preview-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.gmail-subject-line {
+  font-size: 20px;
+  font-weight: 500;
+  color: #202124;
+  margin: 0 0 12px 0;
+  line-height: 1.3;
+}
+
+.gmail-sender-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.gmail-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #1a73e8;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  flex-shrink: 0;
+  font-family: "Google Sans", sans-serif;
+}
+
+.gmail-sender-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gmail-sender-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #202124;
+  line-height: 1.4;
+}
+
+.gmail-sender-email {
+  font-size: 12px;
+  color: #5f6368;
+  margin-top: 1px;
+}
+
+.gmail-to-line {
+  font-size: 12px;
+  color: #5f6368;
+  margin-top: 4px;
+}
+
+.gmail-timestamp {
+  font-size: 12px;
+  color: #5f6368;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.gmail-body {
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #202124;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #ffffff;
+}
+
+.gmail-attachment-bar {
+  padding: 12px 20px;
+  border-top: 1px solid #f1f3f4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: #fafafa;
+}
+
+.gmail-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #202124;
+  transition: box-shadow 0.15s;
+}
+.gmail-attachment-chip:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--accent);
+}
+.gmail-attachment-chip svg,
+.gmail-attachment-chip .attach-icon {
+  color: #ea4335;
+  font-size: 14px;
+}
+
+.gmail-expand-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #f1f3f4;
+  text-align: center;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+}
+.gmail-expand-btn:hover { background: var(--accent-light); }
