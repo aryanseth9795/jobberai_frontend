@@ -9,13 +9,20 @@ import {
   deleteJob,
   JobApplication,
   DashboardStats,
+  FormSession,
+  getFormHistory,
 } from "@/lib/api";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(iso?: string) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
+  
+  // Fastapi/Motor often serializes naive datetimes without a timezone. 
+  // We append 'Z' to force JavaScript to treat it as UTC so it converts to local IST correctly.
+  const dateStr = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z';
+  
+  return new Date(dateStr).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -322,12 +329,79 @@ function DetailModal({
   );
 }
 
+// ─── form detail modal ────────────────────────────────────────────────────────
+
+function FormDetailModal({
+  session,
+  onClose,
+}: {
+  session: FormSession;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.45)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-2xl fade-in"
+        style={{
+          background: "#fff",
+          borderRadius: 8,
+          boxShadow: "0 8px 32px rgba(60,64,67,0.3)",
+          maxHeight: "90vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #e0e0e0", display: "flex", justifyContent: "space-between" }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 600, color: "#202124", margin: 0 }}>
+              {session.role || "Unknown Role"}
+            </h2>
+            <p style={{ fontSize: 14, color: "#5f6368", margin: "3px 0 0" }}>
+              {session.company} · {formatDate(session.filled_at)}
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#5f6368" }}>✕</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+          <div style={{ marginBottom: 20 }}>
+            {session.form_url && (
+              <a href={session.form_url} target="_blank" style={{ fontSize: 13, color: "#1a73e8", textDecoration: "none" }}>🔗 View Original Form</a>
+            )}
+          </div>
+          
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#202124", marginBottom: 12 }}>Extracted Questions & Answers</h3>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {session.answers?.map((ans, i) => {
+              const questionText = session.questions?.find(q => q.index === ans.index)?.question || ans.question;
+              return (
+                <div key={i} style={{ background: "#f8f9fa", border: "1px solid #e0e0e0", borderRadius: 8, padding: 14 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 6 }}>{questionText}</p>
+                  <p style={{ fontSize: 13, color: "#5f6368", whiteSpace: "pre-wrap" }}>{ans.answer}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── main dashboard page ──────────────────────────────────────────────────────
 
 const PAGE_SIZE = 15;
 
 export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState<"emails" | "forms">("emails");
   const [apps, setApps] = useState<JobApplication[]>([]);
+  const [formSessions, setFormSessions] = useState<FormSession[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -335,7 +409,10 @@ export default function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [selected, setSelected] = useState<JobApplication | null>(null);
+  const [selectedForm, setSelectedForm] = useState<FormSession | null>(null);
+  
   const [deleting, setDeleting] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState("");
 
@@ -343,19 +420,25 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [jobRes, statsRes] = await Promise.all([
-        getJobs({ skip: page * PAGE_SIZE, limit: PAGE_SIZE, status: statusFilter || undefined, search: search || undefined }),
-        getJobStats(),
-      ]);
-      setApps(jobRes.applications);
-      setTotal(jobRes.total);
-      setStats(statsRes);
+      if (activeTab === "emails") {
+        const [jobRes, statsRes] = await Promise.all([
+          getJobs({ skip: page * PAGE_SIZE, limit: PAGE_SIZE, status: statusFilter || undefined, search: search || undefined }),
+          getJobStats(),
+        ]);
+        setApps(jobRes.applications);
+        setTotal(jobRes.total);
+        setStats(statsRes);
+      } else {
+        const formRes = await getFormHistory({ skip: page * PAGE_SIZE, limit: PAGE_SIZE });
+        setFormSessions(formRes.sessions);
+        setTotal(formRes.total);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load data");
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, activeTab]);
 
   useEffect(() => {
     loadData();
@@ -471,13 +554,52 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── Filters + search ── */}
-        <div
-          className="hud-card"
-          style={{ padding: "14px 18px", marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}
-        >
-          {/* Search */}
-          <form onSubmit={handleSearch} className="flex items-center gap-2" style={{ flex: 1, minWidth: 200 }}>
+        {/* ── Tabs Toggle ── */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+          <button
+            onClick={() => { setActiveTab("emails"); setPage(0); }}
+            style={{
+              padding: "10px 20px",
+              borderRadius: "8px",
+              border: "none",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              background: activeTab === "emails" ? "#1a73e8" : "#fff",
+              color: activeTab === "emails" ? "#fff" : "#5f6368",
+              boxShadow: activeTab === "emails" ? "0 2px 6px rgba(26,115,232,0.3)" : "0 1px 3px rgba(0,0,0,0.1)",
+              transition: "all 0.2s"
+            }}
+          >
+            ✉ Email Campaigns
+          </button>
+          <button
+            onClick={() => { setActiveTab("forms"); setPage(0); }}
+            style={{
+              padding: "10px 20px",
+              borderRadius: "8px",
+              border: "none",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              background: activeTab === "forms" ? "#0891b2" : "#fff",
+              color: activeTab === "forms" ? "#fff" : "#5f6368",
+              boxShadow: activeTab === "forms" ? "0 2px 6px rgba(8,145,178,0.3)" : "0 1px 3px rgba(0,0,0,0.1)",
+              transition: "all 0.2s"
+            }}
+          >
+            ⚡ Form Fills (Extension)
+          </button>
+        </div>
+
+        {/* ── Filters + search (Emails only) ── */}
+        {activeTab === "emails" && (
+          <div
+            className="hud-card"
+            style={{ padding: "14px 18px", marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}
+          >
+            {/* Search */}
+            <form onSubmit={handleSearch} className="flex items-center gap-2" style={{ flex: 1, minWidth: 200 }}>
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -536,8 +658,9 @@ export default function DashboardPage() {
             ↻ Refresh
           </button>
         </div>
+        )}
 
-        {/* ── Applications table ── */}
+        {/* ── Table/List Area ── */}
         {error && (
           <div
             className="fade-in"
@@ -562,25 +685,29 @@ export default function DashboardPage() {
                 width: 32,
                 height: 32,
                 border: "3px solid #e8f0fe",
-                borderTopColor: "#1a73e8",
+                borderTopColor: activeTab === "forms" ? "#0891b2" : "#1a73e8",
                 borderRadius: "50%",
                 animation: "spin 0.8s linear infinite",
                 margin: "0 auto 12px",
               }}
             />
-            <p style={{ fontSize: 14, color: "#5f6368" }}>Loading applications...</p>
+            <p style={{ fontSize: 14, color: "#5f6368" }}>Loading records...</p>
           </div>
-        ) : apps.length === 0 ? (
+        ) : (activeTab === "emails" ? apps.length === 0 : formSessions.length === 0) ? (
           <div
             className="hud-card"
             style={{ padding: 48, textAlign: "center" }}
           >
             <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
             <p style={{ fontSize: 16, fontWeight: 500, color: "#202124", fontFamily: '"Google Sans", Roboto, sans-serif', marginBottom: 6 }}>
-              {search || statusFilter ? "No applications match your filters" : "No applications yet"}
+              {activeTab === "emails" 
+                ? (search || statusFilter ? "No applications match your filters" : "No email applications yet")
+                : "No form filling sessions yet"}
             </p>
             <p style={{ fontSize: 13, color: "#5f6368" }}>
-              {search || statusFilter ? "Try clearing filters" : "Head to the Apply tab to send your first cover email."}
+              {activeTab === "emails"
+                ? (search || statusFilter ? "Try clearing filters" : "Head to the Apply tab to send your first cover email.")
+                : "Use the Chrome Extension on a Google Form to start logging data here."}
             </p>
           </div>
         ) : (
@@ -590,20 +717,24 @@ export default function DashboardPage() {
               className="hud-card"
               style={{ overflow: "hidden", padding: 0 }}
             >
-              {/* Table header */}
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "2fr 1.5fr 2fr 1fr 100px 36px",
+                  gridTemplateColumns: activeTab === "emails" 
+                    ? "2fr 1.5fr 2fr 1fr 100px 36px"
+                    : "2fr 2fr 1.5fr 100px",
                   gap: 0,
                   padding: "10px 18px",
                   background: "#f8f9fa",
                   borderBottom: "1px solid #e0e0e0",
                 }}
               >
-                {["Company", "Role", "HR Email", "Date", "Status", ""].map((h) => (
+                {(activeTab === "emails" 
+                  ? ["Company", "Role", "HR Email", "Date", "Status", ""] 
+                  : ["Company", "Role", "Filled On", "Status"]
+                ).map((h, idx) => (
                   <span
-                    key={h}
+                    key={idx}
                     style={{
                       fontSize: 11,
                       fontWeight: 600,
@@ -617,8 +748,7 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* Table rows */}
-              {apps.map((app, i) => (
+              {activeTab === "emails" && apps.map((app, i) => (
                 <div
                   key={app._id}
                   onClick={() => setSelected(app)}
@@ -635,48 +765,17 @@ export default function DashboardPage() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#f8f9fa")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "")}
                 >
-                  <span
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: "#202124",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      paddingRight: 8,
-                    }}
-                  >
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "#202124", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
                     {app.company_name || "—"}
                   </span>
-                  <span
-                    style={{
-                      fontSize: 13,
-                      color: "#5f6368",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      paddingRight: 8,
-                    }}
-                  >
+                  <span style={{ fontSize: 13, color: "#5f6368", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
                     {app.role || "—"}
                   </span>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "#1a73e8",
-                      fontFamily: "monospace",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      paddingRight: 8,
-                    }}
-                  >
+                  <span style={{ fontSize: 12, color: "#1a73e8", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
                     {app.hr_email || "—"}
                   </span>
                   <span style={{ fontSize: 12, color: "#9e9e9e", whiteSpace: "nowrap" }}>
-                    {app.applied_at
-                      ? new Date(app.applied_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                      : "—"}
+                    {formatDate(app.applied_at)}
                   </span>
                   <StatusBadge status={app.status} />
                   <button
@@ -698,6 +797,36 @@ export default function DashboardPage() {
                   >
                     {deleting === app._id ? "…" : "🗑"}
                   </button>
+                </div>
+              ))}
+
+              {activeTab === "forms" && formSessions.map((session, i) => (
+                <div
+                  key={session.preview_id}
+                  onClick={() => setSelectedForm(session)}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "2fr 2fr 1.5fr 100px",
+                    gap: 0,
+                    padding: "12px 18px",
+                    borderBottom: i < formSessions.length - 1 ? "1px solid #f1f3f4" : "none",
+                    cursor: "pointer",
+                    transition: "background 0.1s",
+                    alignItems: "center",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8f9fa")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+                >
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "#202124", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
+                    {session.company || "Unknown"}
+                  </span>
+                  <span style={{ fontSize: 13, color: "#5f6368", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
+                    {session.role || session.form_title || "Unknown"}
+                  </span>
+                  <span style={{ fontSize: 12, color: "#9e9e9e", whiteSpace: "nowrap" }}>
+                    {formatDate(session.filled_at)}
+                  </span>
+                  <StatusBadge status={session.status} />
                 </div>
               ))}
             </div>
@@ -751,7 +880,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Detail modal */}
+      {/* Detail modals */}
       {selected && (
         <DetailModal
           app={selected}
@@ -760,6 +889,13 @@ export default function DashboardPage() {
             handleStatusChange(id, status);
             setSelected((s) => (s && s._id === id ? { ...s, status } : s));
           }}
+        />
+      )}
+      
+      {selectedForm && (
+        <FormDetailModal
+          session={selectedForm}
+          onClose={() => setSelectedForm(null)}
         />
       )}
     </main>

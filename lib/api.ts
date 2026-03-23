@@ -97,7 +97,7 @@ export async function applyUnified(text: string, files: File[]): Promise<BatchRe
   for (const file of files) {
     formData.append("files", file);
   }
-  const res = await fetch(`${API_BASE}/apply/unified`, {
+  const res = await fetch(`${API_BASE}/api/mail/apply/unified`, {
     method: "POST",
     body: formData,
   });
@@ -113,7 +113,7 @@ export async function regenerateBatch(
   batch_id: string,
   feedback: string
 ): Promise<BatchResponse> {
-  const res = await fetch(`${API_BASE}/apply/regenerate`, {
+  const res = await fetch(`${API_BASE}/api/mail/apply/regenerate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ batch_id, feedback }),
@@ -130,7 +130,7 @@ export async function confirmBatch(
   batch_id: string,
   approved_drafts: ApprovedDraft[]
 ): Promise<ConfirmResponse> {
-  const res = await fetch(`${API_BASE}/apply/confirm`, {
+  const res = await fetch(`${API_BASE}/api/mail/apply/confirm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ batch_id, approved_drafts }),
@@ -154,28 +154,28 @@ export async function getJobs(params?: {
   if (params?.limit !== undefined) qs.set("limit", String(params.limit));
   if (params?.status) qs.set("status", params.status);
   if (params?.search) qs.set("search", params.search);
-  const res = await fetch(`${API_BASE}/jobs?${qs}`);
+  const res = await fetch(`${API_BASE}/api/shared/jobs?${qs}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 // Get a single application
 export async function getJob(id: string): Promise<JobApplication> {
-  const res = await fetch(`${API_BASE}/jobs/${id}`);
+  const res = await fetch(`${API_BASE}/api/shared/jobs/${id}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 // Dashboard stats
 export async function getJobStats(): Promise<DashboardStats> {
-  const res = await fetch(`${API_BASE}/jobs/stats`);
+  const res = await fetch(`${API_BASE}/api/shared/jobs/stats`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 // Update status of an application
 export async function updateJobStatus(id: string, status: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/jobs/${id}/status?status=${encodeURIComponent(status)}`, {
+  const res = await fetch(`${API_BASE}/api/shared/jobs/${id}/status?status=${encodeURIComponent(status)}`, {
     method: "PATCH",
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -183,7 +183,7 @@ export async function updateJobStatus(id: string, status: string): Promise<void>
 
 // Delete an application
 export async function deleteJob(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/jobs/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/api/shared/jobs/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
@@ -194,7 +194,7 @@ export async function getProfileStatus(): Promise<{
   sources: string[];
   message: string;
 }> {
-  const res = await fetch(`${API_BASE}/profile/status`);
+  const res = await fetch(`${API_BASE}/api/shared/profile/status`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -205,7 +205,7 @@ export async function ingestProfile(files?: File[]): Promise<{ status: string; c
   if (files) {
     for (const f of files) formData.append("files", f);
   }
-  const res = await fetch(`${API_BASE}/ingest`, { method: "POST", body: formData });
+  const res = await fetch(`${API_BASE}/api/shared/ingest`, { method: "POST", body: formData });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -223,14 +223,187 @@ export interface UploadedFiles {
 }
 
 export async function getUploadedFiles(): Promise<UploadedFiles> {
-  const res = await fetch(`${API_BASE}/profile/uploads`);
+  const res = await fetch(`${API_BASE}/api/shared/profile/uploads`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 // Delete an uploaded file
 export async function deleteUploadedFile(fileType: "resume" | "cover_letter"): Promise<{ status: string; message: string }> {
-  const res = await fetch(`${API_BASE}/profile/uploads/${fileType}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/api/shared/profile/uploads/${fileType}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+// --- NeuralAgent Forms API ---
+
+export interface FormField {
+  field_id: string;
+  question: string;
+  question_type: string;
+  options: string[];
+  is_required: boolean;
+  helper_text?: string;
+  section?: string;
+}
+
+export interface FormAnswer {
+  field_id: string;
+  question: string;
+  question_type: string;
+  answer: string | string[];
+  confidence: number;
+  source: string;
+  reasoning?: string;
+}
+
+export interface FormFillPreview {
+  preview_id: string;
+  form_url: string;
+  provider: string;
+  form_title: string;
+  metadata: Record<string, string>;
+  fields: FormField[];
+  answers: FormAnswer[];
+  status: string;
+  filled_screenshot_b64?: string;
+  error?: string;
+}
+
+export async function fillForm(url: string, instructions?: string): Promise<FormFillPreview> {
+  const res = await fetch(`${API_BASE}/api/gform/forms/fill`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, instructions }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getFormPreview(id: string): Promise<FormFillPreview> {
+  const res = await fetch(`${API_BASE}/api/gform/forms/preview/${id}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function editAnswer(id: string, field_id: string, new_answer: string | string[]): Promise<FormFillPreview> {
+  const res = await fetch(`${API_BASE}/api/gform/forms/edit/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ field_id, new_answer }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export async function approveForm(id: string): Promise<{status: string, message: string, screenshot_b64?: string}> {
+  const res = await fetch(`${API_BASE}/api/gform/forms/approve/${id}`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function loginGoogle(): Promise<{status: string, message: string}> {
+  const res = await fetch(`${API_BASE}/api/gform/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id: "default_user" }),
+  });
+  if (!res.ok) {
+     const err = await res.json().catch(() => ({ detail: "Unknown Error" }));
+     throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// --- New Form Filling History API ---
+
+export interface FormSession {
+  preview_id: string;      // The session ID
+  form_url: string;
+  form_title: string;
+  company: string;
+  role: string;
+  status: string;
+  filled_at: string;
+  questions_count: number;
+  questions: any[];
+  answers: any[];
+}
+
+export interface FormHistoryResponse {
+  total: number;
+  sessions: FormSession[];
+}
+
+export async function getFormHistory(params?: { skip?: number; limit?: number }): Promise<FormHistoryResponse> {
+  const qs = new URLSearchParams();
+  if (params?.skip !== undefined) qs.set("skip", String(params.skip));
+  if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+  const res = await fetch(`${API_BASE}/api/gform/fill-form/history?${qs}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// --- Job Scraping API ---
+
+export interface JobListing {
+  company_name: string | null;
+  company_detail: string | null;
+  salary: string | null;
+  location: string | null;
+  experience_required: string | null;
+  other_requirements: string | null;
+  hr_email_or_number: string | null;
+  job_apply_link: string | null;
+  additional_data: string | null;
+  scraped_at: string;
+  source_site: string;
+  search_role: string;
+  role: string | null;
+  description: string | null;
+}
+
+export interface ScrapeRequest {
+  roles: string[];
+  max_results_per_role: number;
+}
+
+export interface ScrapeResponse {
+  status: string;
+  total_found: number;
+  new_jobs: number;
+  duplicates_skipped: number;
+  jobs: JobListing[];
+}
+
+export async function triggerScrape(req: ScrapeRequest): Promise<ScrapeResponse> {
+  const res = await fetch(`${API_BASE}/api/scraper/scrape`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getScrapedJobs(params?: { role?: string; skip?: number; limit?: number }): Promise<{total: number, jobs: JobListing[]}> {
+  const qs = new URLSearchParams();
+  if (params?.role) qs.set("role", params.role);
+  if (params?.skip !== undefined) qs.set("skip", String(params.skip));
+  if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+  
+  const res = await fetch(`${API_BASE}/api/scraper/jobs/scraped?${qs}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
