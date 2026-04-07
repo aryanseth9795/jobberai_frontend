@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jobber AI — Cold Email Automation, Google Form Filler & Job Scraping</title>
+  <meta name="description" content="Jobber AI is an agentic AI platform that automates job applications with cold email automation, Google Form auto-fill, and multi-board job scraping — powered by LangGraph, Gemini, and ChromaDB RAG." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ═══════════════════════════ RESET & BASE ═══════════════════════════ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-dark: #06091a;
+      --bg-card: rgba(255,255,255,0.04);
+      --bg-card-hover: rgba(255,255,255,0.08);
+      --text-primary: #f0f2f5;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-purple: #8b5cf6;
+      --accent-green: #10b981;
+      --accent-orange: #f59e0b;
+      --accent-pink: #ec4899;
+      --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+      --gradient-cta: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+      --border-subtle: rgba(255,255,255,0.06);
+      --glow-blue: 0 0 60px rgba(59,130,246,0.15);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --radius-xs: 6px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.7;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    img { max-width: 100%; display: block; }
+
+    a { color: inherit; text-decoration: none; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* ═══════════════════════════ ANIMATIONS ═══════════════════════════ */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(32px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(59,130,246,0.2); }
+      50% { box-shadow: 0 0 40px rgba(59,130,246,0.4); }
+    }
+    @keyframes gradient-shift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes slide-left {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    .animate-in {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+    .animate-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ═══════════════════════════ NAV ═══════════════════════════ */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 16px 0;
+      transition: background 0.3s, backdrop-filter 0.3s;
+    }
+    nav.scrolled {
+      background: rgba(6,9,26,0.85);
+      backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+    }
+    .nav-logo-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--gradient-hero);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 20px rgba(59,130,246,0.3);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      list-style: none;
+    }
+    .nav-links a {
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    .nav-links a:hover {
+      color: var(--text-primary);
+      background: rgba(255,255,255,0.06);
+    }
+    .nav-cta {
+      background: var(--gradient-cta) !important;
+      color: #fff !important;
+      font-weight: 600 !important;
+      box-shadow: 0 4px 16px rgba(59,130,246,0.25);
+    }
+    .nav-cta:hover {
+      box-shadow: 0 4px 24px rgba(59,130,246,0.4) !important;
+      transform: translateY(-1px);
+    }
+
+    /* ═══════════════════════════ HERO ═══════════════════════════ */
+    .hero {
+      position: relative;
+      padding: 180px 0 120px;
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 1000px;
+      height: 1000px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -100px;
+      right: -200px;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px 6px 8px;
+      border-radius: 100px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent-blue);
+      margin-bottom: 32px;
+      animation: fadeInUp 0.6s cubic-bezier(0.16,1,0.3,1);
+    }
+    .hero-badge-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent-green);
+      animation: pulse-glow 2s infinite;
+    }
+    .hero h1 {
+      font-size: clamp(48px, 6vw, 80px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      animation: fadeInUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.1s both;
+    }
+    .hero h1 .gradient-text {
+      background: var(--gradient-hero);
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: gradient-shift 4s ease infinite;
+    }
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--text-secondary);
+      max-width: 640px;
+      margin: 0 auto 48px;
+      line-height: 1.7;
+      animation: fadeInUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.2s both;
+    }
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeInUp 0.7s cubic-bezier(0.16,1,0.3,1) 0.3s both;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
+    }
+    .btn-primary {
+      background: var(--gradient-cta);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(59,130,246,0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(59,130,246,0.4);
+    }
+    .btn-outline {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .btn-outline:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.25);
+      transform: translateY(-2px);
+    }
+
+    /* ═══════════════════════════ TECH STRIP ═══════════════════════════ */
+    .tech-strip {
+      padding: 40px 0;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      overflow: hidden;
+    }
+    .tech-strip-label {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+    .tech-scroll {
+      display: flex;
+      gap: 48px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .tech-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      transition: color 0.2s;
+    }
+    .tech-item:hover { color: var(--text-primary); }
+    .tech-item img { width: 28px; height: 28px; border-radius: 6px; }
+
+    /* ═══════════════════════════ FEATURES ═══════════════════════════ */
+    .features {
+      padding: 120px 0;
+    }
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.15);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+    .section-sub {
+      font-size: 17px;
+      color: var(--text-secondary);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+    .features-header {
+      text-align: center;
+      margin-bottom: 72px;
+    }
+    .features-header .section-sub {
+      margin: 0 auto;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+    .feature-card {
+      position: relative;
+      padding: 32px;
+      border-radius: var(--radius);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--card-accent, var(--accent-blue));
+      opacity: 0;
+      transition: opacity 0.35s;
+    }
+    .feature-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(255,255,255,0.1);
+      transform: translateY(-4px);
+      box-shadow: var(--glow-blue);
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+      background: rgba(59,130,246,0.1);
+    }
+    .feature-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* ═══════════════════════ MODULE DEEP-DIVES ═══════════════════════ */
+    .module {
+      padding: 100px 0;
+    }
+    .module:nth-child(even) {
+      background: rgba(255,255,255,0.01);
+    }
+    .module-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+    @media (max-width: 920px) {
+      .module-grid { grid-template-columns: 1fr; gap: 40px; }
+    }
+    .module-content { flex: 1; }
+    .module-visual {
+      position: relative;
+      padding: 32px;
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.04) 100%);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .pipeline-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .pipeline-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      position: relative;
+      padding-bottom: 24px;
+    }
+    .pipeline-step:last-child { padding-bottom: 0; }
+    .pipeline-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 44px;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(180deg, var(--accent-blue), rgba(59,130,246,0.1));
+    }
+    .pipeline-dot {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+    }
+    .pipeline-text h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .pipeline-text p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .stat-box {
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-subtle);
+      text-align: center;
+    }
+    .stat-box .stat-num {
+      font-size: 24px;
+      font-weight: 800;
+      background: var(--gradient-hero);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-box .stat-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    /* Checklist */
+    .check-list {
+      list-style: none;
+      padding: 0;
+      margin-top: 24px;
+    }
+    .check-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      font-size: 15px;
+      color: var(--text-secondary);
+    }
+    .check-list li::before {
+      content: '✓';
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: rgba(16,185,129,0.1);
+      color: var(--accent-green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* ═══════════════════════════ ARCHITECTURE ═══════════════════════════ */
+    .arch {
+      padding: 120px 0;
+    }
+    .arch-visual {
+      margin-top: 48px;
+      padding: 40px;
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(59,130,246,0.03) 0%, rgba(139,92,246,0.02) 100%);
+      border: 1px solid var(--border-subtle);
+    }
+    .arch-layers {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      .arch-layers { grid-template-columns: repeat(2, 1fr); }
+    }
+    .arch-layer {
+      padding: 24px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: rgba(255,255,255,0.02);
+    }
+    .arch-layer-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-blue);
+      margin-bottom: 16px;
+    }
+    .arch-layer ul {
+      list-style: none;
+      padding: 0;
+    }
+    .arch-layer li {
+      font-size: 13px;
+      color: var(--text-secondary);
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .arch-layer li:last-child { border-bottom: none; }
+    .arch-layer li strong { color: var(--text-primary); font-weight: 600; }
+
+    /* ═══════════════════════════ CTA ═══════════════════════════ */
+    .cta-section {
+      padding: 120px 0;
+      text-align: center;
+      position: relative;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(59,130,246,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-card {
+      position: relative;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 64px 48px;
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(59,130,246,0.08) 0%, rgba(139,92,246,0.06) 100%);
+      border: 1px solid rgba(59,130,246,0.15);
+    }
+    .cta-card h2 {
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 16px;
+    }
+    .cta-card p {
+      color: var(--text-secondary);
+      font-size: 17px;
+      margin-bottom: 36px;
+      line-height: 1.7;
+    }
+
+    /* ═══════════════════════════ FOOTER ═══════════════════════════ */
+    footer {
+      padding: 48px 0;
+      border-top: 1px solid var(--border-subtle);
+    }
+    footer .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .footer-right {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .footer-tag {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-subtle);
+    }
+
+    /* ═══════════════════════ MOBILE NAV ═══════════════════════ */
+    .mobile-toggle { display: none; background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; }
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .mobile-toggle { display: block; }
+      .hero { padding: 140px 0 80px; }
+      .module-grid { grid-template-columns: 1fr; }
+      .arch-layers { grid-template-columns: 1fr 1fr; }
+      .stat-row { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* Code snippet block */
+    .code-block {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: var(--radius-sm);
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      line-height: 1.8;
+    }
+    .code-block .keyword { color: var(--accent-purple); }
+    .code-block .string { color: var(--accent-green); }
+    .code-block .comment { color: var(--text-muted); }
+    .code-block .func { color: var(--accent-cyan); }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════ NAVIGATION ═══════════════════════════ -->
+  <nav id="navbar">
+    <div class="container">
+      <a href="#" class="nav-logo">
+        <div class="nav-logo-icon">⚡</div>
+        Jobber AI
+      </a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#email">Email</a></li>
+        <li><a href="#forms">Forms</a></li>
+        <li><a href="#scraping">Scraping</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#setup" class="nav-cta">Get Started</a></li>
+      </ul>
+      <button class="mobile-toggle" onclick="document.getElementById('navLinks').style.display = document.getElementById('navLinks').style.display === 'flex' ? 'none' : 'flex'">☰</button>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        Powered by LangGraph + Gemini 2.0 Flash
+      </div>
+
+      <h1>
+        Your Job Search,<br/>
+        <span class="gradient-text">Fully Automated.</span>
+      </h1>
+
+      <p class="hero-sub">
+        Cold email automation. Google Form auto-fill. Multi-board job scraping.
+        One agentic AI platform with a LangGraph pipeline and RAG system
+        that turns your resume into personalised applications.
+      </p>
+
+      <div class="hero-buttons">
+        <a href="#setup" class="btn btn-primary">
+          🚀 Get Started
+        </a>
+        <a href="https://github.com/aryanseth9795/jobberai_frontend" class="btn btn-outline" target="_blank">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/></svg>
+          Frontend Repo
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ TECH STRIP ═══════════════════════════ -->
+  <section class="tech-strip">
+    <div class="container">
+      <div class="tech-strip-label">Built With</div>
+      <div class="tech-scroll">
+        <div class="tech-item"><img src="https://raw.githubusercontent.com/tandpfun/skill-icons/65dea6c4eaca7da319e552c09f4df5a9db0daa28/icons/FastAPI.svg" alt="FastAPI" /> FastAPI</div>
+        <div class="tech-item"><img src="https://raw.githubusercontent.com/tandpfun/skill-icons/65dea6c4eaca7da319e552c09f4df5a9db0daa28/icons/NextJS-Dark.svg" alt="Next.js" /> Next.js 16</div>
+        <div class="tech-item"><img src="https://raw.githubusercontent.com/tandpfun/skill-icons/65dea6c4eaca7da319e552c09f4df5a9db0daa28/icons/Python-Dark.svg" alt="Python" /> Python</div>
+        <div class="tech-item"><img src="https://raw.githubusercontent.com/tandpfun/skill-icons/65dea6c4eaca7da319e552c09f4df5a9db0daa28/icons/TypeScript.svg" alt="TypeScript" /> TypeScript</div>
+        <div class="tech-item"><img src="https://raw.githubusercontent.com/tandpfun/skill-icons/65dea6c4eaca7da319e552c09f4df5a9db0daa28/icons/MongoDB.svg" alt="MongoDB" /> MongoDB</div>
+        <div class="tech-item">🧠 LangGraph</div>
+        <div class="tech-item">⚡ Gemini 2.0</div>
+        <div class="tech-item">🔮 ChromaDB</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ FEATURES GRID ═══════════════════════════ -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="features-header animate-in">
+        <div class="section-label">✨ Core Capabilities</div>
+        <h2 class="section-title">Three Modules. One Platform.</h2>
+        <p class="section-sub">Every repetitive step of your job search — automated, personalised, and intelligent.</p>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card animate-in" style="--card-accent: #3b82f6;">
+          <div class="feature-icon" style="background: rgba(59,130,246,0.1);">✉️</div>
+          <h3>Cold Email Automation</h3>
+          <p>Provide HR email + job description (text, screenshots, or PDFs). The LangGraph pipeline extracts details, retrieves your resume context via RAG, and drafts a personalised cover email — delivered via <strong>Resend API through your own verified domain</strong> (e.g., <code style="background:rgba(59,130,246,0.15);padding:2px 6px;border-radius:4px;font-size:12px;">hi@yourdomain.com</code>) with your resume PDF attached.</p>
+        </div>
+        <div class="feature-card animate-in" style="--card-accent: #f59e0b;">
+          <div class="feature-icon" style="background: rgba(245,158,11,0.1);">📝</div>
+          <h3>Google Form Filler</h3>
+          <p>A Chrome Extension that scrapes Google Form questions, sends them to the Gemini backend, and auto-fills every field using your profile context — handling text, MCQ, checkboxes, and dropdowns intelligently.</p>
+        </div>
+        <div class="feature-card animate-in" style="--card-accent: #10b981;">
+          <div class="feature-icon" style="background: rgba(16,185,129,0.1);">🔍</div>
+          <h3>Job Scraping Engine</h3>
+          <p>Scrapes Indeed, LinkedIn, and ZipRecruiter in parallel. Two-layer deduplication (MD5 + MongoDB) ensures no duplicate listings. Results normalised into a unified schema with salary, location, and apply links.</p>
+        </div>
+        <div class="feature-card animate-in" style="--card-accent: #8b5cf6;">
+          <div class="feature-icon" style="background: rgba(139,92,246,0.1);">🧠</div>
+          <h3>RAG Profile System</h3>
+          <p>Upload your resume, cover letters, and project documents. They're chunked, embedded with Gemini, and stored in ChromaDB. Every email and form answer is enriched with your most relevant experience — automatically.</p>
+        </div>
+        <div class="feature-card animate-in" style="--card-accent: #ec4899;">
+          <div class="feature-icon" style="background: rgba(236,72,153,0.1);">🔄</div>
+          <h3>Bulk Re-Apply</h3>
+          <p>Select a date range, fetch all past applications, and re-draft fresh cover emails with updated profile context. Concurrency-limited to 5 simultaneous LLM calls with exponential backoff retry.</p>
+        </div>
+        <div class="feature-card animate-in" style="--card-accent: #06b6d4;">
+          <div class="feature-icon" style="background: rgba(6,182,212,0.1);">📊</div>
+          <h3>Dashboard & Analytics</h3>
+          <p>Track every sent application, monitor delivery status, search by company/role, and view aggregate stats — all backed by MongoDB with real-time aggregation queries.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ MODULE: EMAIL ═══════════════════════════ -->
+  <section class="module" id="email">
+    <div class="container">
+      <div class="module-grid">
+        <div class="module-content animate-in">
+          <div class="section-label">✉️ Module 1</div>
+          <h2 class="section-title">Cold Email Automation</h2>
+          <p class="section-sub">
+            A 4-node LangGraph pipeline that transforms raw job postings into
+            personalised, ready-to-send cover emails — delivered through your own
+            custom domain via the Resend API, with your resume attached.
+          </p>
+
+          <ul class="check-list">
+            <li>Multimodal input: paste text, drop screenshots, upload PDFs, or Ctrl+V from clipboard</li>
+            <li>Multi-job segmentation: Upload 5 screenshots and the AI identifies each job automatically</li>
+            <li>Two-phase HITL: AI drafts, you edit & approve, then bulk-send with one click</li>
+            <li>Smart duplicate detection: ChromaDB cosine similarity + LLM cross-validation</li>
+            <li>Agent feedback loop: Give natural language instructions to regenerate all drafts</li>
+            <li>Emails sent via <strong>Resend API through your own DNS-verified domain</strong> (e.g., <code style="font-size:12px;">aryan@yourdomain.com</code>) — not a generic sender. Resume PDF auto-attached</li>
+          </ul>
+        </div>
+
+        <div class="module-visual animate-in">
+          <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-blue); margin-bottom: 20px;">LangGraph Pipeline</div>
+          <div class="pipeline-steps">
+            <div class="pipeline-step">
+              <div class="pipeline-dot">🔍</div>
+              <div class="pipeline-text">
+                <h4>Extract Job Info</h4>
+                <p>Gemini Vision processes text + images → structured JSON with company, role, HR email, requirements</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot">🔄</div>
+              <div class="pipeline-text">
+                <h4>Check Duplicates</h4>
+                <p>ChromaDB cosine similarity (0.93 threshold) + LLM cross-validation to flag recent duplicates</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot">🧠</div>
+              <div class="pipeline-text">
+                <h4>Fetch Profile Context</h4>
+                <p>RAG retrieval: top-5 most relevant resume/project chunks from ChromaDB user_profile collection</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot">✉️</div>
+              <div class="pipeline-text">
+                <h4>Generate Cover Email</h4>
+                <p>Job info + profile context → Gemini drafts a compelling, personalised subject + body</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.25);">📤</div>
+              <div class="pipeline-text">
+                <h4>Send via Resend API</h4>
+                <p>Delivered through <strong style="color: var(--accent-green);">your own domain</strong> (e.g., <code style="font-size:11px; background:rgba(16,185,129,0.1); padding:2px 6px; border-radius:4px;">aryan@yourdomain.com</code>) — with resume PDF attached. Not a generic sender.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-box">
+              <div class="stat-num">4</div>
+              <div class="stat-text">Graph Nodes</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">0.93</div>
+              <div class="stat-text">Dedup Threshold</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">15</div>
+              <div class="stat-text">RPM Limit</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ MODULE: FORMS ═══════════════════════════ -->
+  <section class="module" id="forms">
+    <div class="container">
+      <div class="module-grid">
+        <div class="module-visual animate-in">
+          <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-orange); margin-bottom: 20px;">Chrome Extension Pipeline</div>
+          <div class="pipeline-steps">
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2);">🌐</div>
+              <div class="pipeline-text">
+                <h4>Content Script Scrapes Form</h4>
+                <p>Injected into docs.google.com/forms/* — extracts questions, types, options, and form title</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2);">📦</div>
+              <div class="pipeline-text">
+                <h4>Background Worker Relays</h4>
+                <p>Service worker (MV3) sends structured question data to FastAPI backend</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2);">🧠</div>
+              <div class="pipeline-text">
+                <h4>RAG + Batch LLM Generation</h4>
+                <p>Extracts metadata, retrieves top-8 profile chunks, then single LLM call answers all questions</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2);">📝</div>
+              <div class="pipeline-text">
+                <h4>Auto-Fill + Validate</h4>
+                <p>Extension fills each field. AnswerValidator ensures MCQ/checkbox answers match available options</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-box">
+              <div class="stat-num">5</div>
+              <div class="stat-text">Question Types</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">8</div>
+              <div class="stat-text">RAG Chunks</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">1</div>
+              <div class="stat-text">LLM Call</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="module-content animate-in">
+          <div class="section-label" style="background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.15); color: var(--accent-orange);">📝 Module 2</div>
+          <h2 class="section-title">Google Form Filler</h2>
+          <p class="section-sub">
+            A Manifest V3 Chrome Extension that scrapes Google Forms and auto-fills answers
+            using your resume context — handling every question type intelligently.
+          </p>
+
+          <ul class="check-list">
+            <li>Supports text, paragraph, multiple choice, checkbox, and dropdown fields</li>
+            <li>Metadata extraction: LLM identifies company name + role from form title and questions</li>
+            <li>Batch answer generation: single LLM call processes all questions at once (no per-field calls)</li>
+            <li>Answer validation: case-insensitive matching ensures MCQ selections are exact</li>
+            <li>Session persistence: every fill is saved to MongoDB with full Q&A pairs</li>
+            <li>History browsable via frontend dashboard at /forms</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ MODULE: SCRAPING ═══════════════════════════ -->
+  <section class="module" id="scraping">
+    <div class="container">
+      <div class="module-grid">
+        <div class="module-content animate-in">
+          <div class="section-label" style="background: rgba(16,185,129,0.08); border-color: rgba(16,185,129,0.15); color: var(--accent-green);">🔍 Module 3</div>
+          <h2 class="section-title">Job Scraping Engine</h2>
+          <p class="section-sub">
+            Automated job discovery across three major job boards — scraped in parallel
+            with robust deduplication and a unified listing dashboard.
+          </p>
+
+          <ul class="check-list">
+            <li>Parallel scraping: Indeed, LinkedIn, ZipRecruiter via asyncio.gather()</li>
+            <li>Fault-tolerant: A 403 from one board doesn't block results from others</li>
+            <li>Two-layer dedup: Internal MD5 hash + cross-run MongoDB lookup</li>
+            <li>Gemini-powered extraction for custom URLs: HTML → BeautifulSoup → structured JSON</li>
+            <li>Unified JobListing schema: company, salary, location, experience, apply link, HR contact</li>
+            <li>Full CRUD API: trigger scrapes, browse listings, delete entries</li>
+          </ul>
+        </div>
+
+        <div class="module-visual animate-in">
+          <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-green); margin-bottom: 20px;">Scraping Pipeline</div>
+          <div class="pipeline-steps">
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2);">🎯</div>
+              <div class="pipeline-text">
+                <h4>Target Roles Input</h4>
+                <p>User provides roles (e.g., "React Developer") + max results per role</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2);">⚡</div>
+              <div class="pipeline-text">
+                <h4>Parallel Site Scraping</h4>
+                <p>python-jobspy queries Indeed, LinkedIn, ZipRecruiter simultaneously via asyncio.gather()</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2);">🧹</div>
+              <div class="pipeline-text">
+                <h4>Two-Layer Deduplication</h4>
+                <p>Internal MD5 hash dedup within run, then cross-run check against MongoDB scraped_jobs</p>
+              </div>
+            </div>
+            <div class="pipeline-step">
+              <div class="pipeline-dot" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2);">💾</div>
+              <div class="pipeline-text">
+                <h4>Save & Display</h4>
+                <p>New jobs inserted into MongoDB. All unique results returned to frontend with badges</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-box">
+              <div class="stat-num">3</div>
+              <div class="stat-text">Job Boards</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">2</div>
+              <div class="stat-text">Dedup Layers</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-num">∞</div>
+              <div class="stat-text">Roles</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ ARCHITECTURE ═══════════════════════════ -->
+  <section class="arch" id="architecture">
+    <div class="container">
+      <div class="features-header animate-in">
+        <div class="section-label">🏗️ Under The Hood</div>
+        <h2 class="section-title">Full-Stack Architecture</h2>
+        <p class="section-sub">A FastAPI modular monorepo with shared services, async MongoDB, and a React dashboard.</p>
+      </div>
+
+      <div class="arch-visual animate-in">
+        <div class="arch-layers">
+          <div class="arch-layer">
+            <div class="arch-layer-title">Frontend</div>
+            <ul>
+              <li><strong>Next.js 16</strong> + React 19</li>
+              <li>TailwindCSS 4</li>
+              <li>TypeScript</li>
+              <li>6 pages / routes</li>
+              <li>9 components</li>
+            </ul>
+          </div>
+          <div class="arch-layer">
+            <div class="arch-layer-title" style="color: var(--accent-purple);">AI / LLM</div>
+            <ul>
+              <li><strong>Gemini 2.0 Flash</strong> Lite</li>
+              <li><strong>LangGraph</strong> 0.2.60</li>
+              <li>Gemini Embedding 001</li>
+              <li>Vision + Text Gen</li>
+              <li>Token-bucket rate limiter</li>
+            </ul>
+          </div>
+          <div class="arch-layer">
+            <div class="arch-layer-title" style="color: var(--accent-green);">Data Layer</div>
+            <ul>
+              <li><strong>ChromaDB</strong> (Vector DB)</li>
+              <li><strong>MongoDB</strong> (Motor async)</li>
+              <li>6 collections</li>
+              <li>20+ DB operations</li>
+              <li>Cosine HNSW index</li>
+            </ul>
+          </div>
+          <div class="arch-layer">
+            <div class="arch-layer-title" style="color: var(--accent-orange);">Integrations</div>
+            <ul>
+              <li><strong>Resend</strong> Email API</li>
+              <li><strong>python-jobspy</strong> 1.1.x</li>
+              <li>Chrome Extension MV3</li>
+              <li>PyMuPDF + python-docx</li>
+              <li>BeautifulSoup + LXML</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 40px;">
+        <div class="code-block animate-in">
+          <span class="comment"># Start the entire platform with two commands:</span><br/><br/>
+          <span class="comment"># Backend (FastAPI + LangGraph + ChromaDB + MongoDB)</span><br/>
+          <span class="keyword">cd</span> backend && <span class="func">uvicorn</span> main:app <span class="string">--reload</span> <span class="string">--port 8000</span><br/><br/>
+          <span class="comment"># Frontend (Next.js Dashboard)</span><br/>
+          <span class="keyword">cd</span> frontend && <span class="func">npm</span> run <span class="string">dev</span><br/><br/>
+          <span class="comment"># Chrome Extension: Load /frontend/neural-mailer-extension/ as unpacked extension</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ CTA ═══════════════════════════ -->
+  <section class="cta-section" id="setup">
+    <div class="container">
+      <div class="cta-card animate-in">
+        <h2>Ready to <span class="gradient-text">automate</span> your job search?</h2>
+        <p>
+          Clone the repo, add your Gemini + Resend API keys, upload your resume,
+          and start sending personalised applications in minutes.
+        </p>
+        <div class="hero-buttons">
+          <a href="https://github.com/aryanseth9795/jobberai_backend" class="btn btn-primary" target="_blank">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/></svg>
+            Backend Repo
+          </a>
+          <a href="https://github.com/aryanseth9795/jobberai_frontend" class="btn btn-outline" target="_blank">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12"/></svg>
+            Frontend Repo
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+  <footer>
+    <div class="container">
+      <div class="footer-left">
+        <div class="nav-logo-icon" style="width: 28px; height: 28px; font-size: 14px; border-radius: 8px;">⚡</div>
+        <span>Built with ❤️ by <strong style="color: var(--text-primary);">Aryan</strong></span>
+      </div>
+      <div class="footer-right">
+        <span class="footer-tag">FastAPI</span>
+        <span class="footer-tag">Next.js</span>
+        <span class="footer-tag">LangGraph</span>
+        <span class="footer-tag">Gemini</span>
+        <span class="footer-tag">ChromaDB</span>
+        <span class="footer-tag">MongoDB</span>
+        <span class="footer-tag">Resend</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ═══════════════════════════ SCRIPTS ═══════════════════════════ -->
+  <script>
+    // Navbar scroll effect
+    const navbar = document.getElementById('navbar');
+    window.addEventListener('scroll', () => {
+      navbar.classList.toggle('scrolled', window.scrollY > 40);
+    });
+
+    // Scroll-triggered animations (IntersectionObserver)
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -60px 0px' }
+    );
+
+    document.querySelectorAll('.animate-in').forEach((el) => observer.observe(el));
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach((a) => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = document.querySelector(a.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Close mobile nav
+          document.getElementById('navLinks').style.display = '';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
