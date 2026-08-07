@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Neural AI Form Filler</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      width: 420px;
+      max-height: 560px;
+      background: #0d1117;
+      color: #e6edf3;
+      overflow-y: auto;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #21262d;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: #0d1117;
+      z-index: 10;
+    }
+    .header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #22d3ee;
+    }
+    .header .meta {
+      font-size: 10px;
+      color: #8b949e;
+    }
+
+    /* ── Initial View ── */
+    .initial-view {
+      padding: 20px 16px;
+      text-align: center;
+    }
+    .initial-view p {
+      font-size: 12px;
+      color: #8b949e;
+      margin-bottom: 16px;
+    }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      width: 100%;
+      padding: 10px;
+      background: #0891b2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { background: #0e7490; }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-primary:disabled { background: #3b3b3b; color: #666; cursor: not-allowed; }
+
+    .btn-confirm {
+      background: #059669;
+    }
+    .btn-confirm:hover { background: #047857; }
+
+    /* ── Status Bar ── */
+    #status {
+      padding: 8px 16px;
+      font-size: 12px;
+      text-align: center;
+      color: #8b949e;
+    }
+    #status.success { color: #34d399; }
+    #status.error   { color: #f87171; }
+    #status.loading { color: #fbbf24; }
+
+    /* ── Preview Panel ── */
+    .preview-panel {
+      padding: 0 16px 16px;
+    }
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0 8px;
+      border-bottom: 1px solid #21262d;
+      margin-bottom: 10px;
+    }
+    .preview-header h2 {
+      font-size: 13px;
+      color: #e6edf3;
+      font-weight: 600;
+    }
+    .preview-header .count {
+      font-size: 11px;
+      color: #8b949e;
+      background: #21262d;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    /* ── Answer Card ── */
+    .answer-card {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      transition: border-color 0.2s;
+    }
+    .answer-card:hover {
+      border-color: #30363d;
+    }
+    .answer-card .q-label {
+      font-size: 11px;
+      color: #8b949e;
+      margin-bottom: 2px;
+    }
+    .answer-card .question {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e6edf3;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .answer-card .answer-input {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #e6edf3;
+      font-size: 12px;
+      padding: 6px 8px;
+      font-family: 'Segoe UI', sans-serif;
+      resize: vertical;
+      min-height: 28px;
+      transition: border-color 0.2s;
+    }
+    .answer-card .answer-input:focus {
+      outline: none;
+      border-color: #22d3ee;
+    }
+    .answer-card .type-badge {
+      display: inline-block;
+      font-size: 9px;
+      color: #22d3ee;
+      background: rgba(34, 211, 238, 0.1);
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 10px 16px 14px;
+      border-top: 1px solid #21262d;
+      position: sticky;
+      bottom: 0;
+      background: #0d1117;
+    }
+
+    /* ── Metadata Pills ── */
+    .meta-pills {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      font-size: 10px;
+      background: #21262d;
+      color: #8b949e;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .pill strong { color: #e6edf3; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>⚡ Neural AI</h1>
+    <span class="meta">Form Filler</span>
+  </div>
+
+  <!-- Phase 1: Initial View -->
+  <div id="initialView" class="initial-view">
+    <p>Open a Google Form, then click below to auto-fill it with AI-generated answers.</p>
+    <button id="fillBtn" class="btn-primary">Fill This Form</button>
+  </div>
+
+  <!-- Status -->
+  <div id="status"></div>
+
+  <!-- Phase 2: Preview Panel (hidden initially) -->
+  <div id="previewPanel" class="preview-panel" style="display:none;">
+
+    <div class="meta-pills" id="metaPills"></div>
+
+    <div class="preview-header">
+      <h2>Review Answers</h2>
+      <span class="count" id="answerCount"></span>
+    </div>
+
+    <div id="answerList"></div>
+  </div>
+
+  <!-- Footer with Confirm button (hidden initially) -->
+  <div id="footer" class="footer" style="display:none;">
+    <button id="confirmBtn" class="btn-primary btn-confirm">✅ Confirm & Fill Form</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

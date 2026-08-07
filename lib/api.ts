@@ -402,8 +402,82 @@ export async function getScrapedJobs(params?: { role?: string; skip?: number; li
   if (params?.skip !== undefined) qs.set("skip", String(params.skip));
   if (params?.limit !== undefined) qs.set("limit", String(params.limit));
   
-  const res = await fetch(`${API_BASE}/api/scraper/jobs/scraped?${qs}`);
+  const res = await fetch(`${API_BASE}/api/scraper/listings?${qs}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
+// --- Re-Apply API ---
+
+export interface ReapplyDraft {
+  original_app_id: string;
+  company_name: string;
+  role: string;
+  hr_email: string;
+  original_subject: string;
+  original_body: string;
+  new_cover_email: CoverEmail | null;
+  draft_status: "drafted" | "error";
+  error: string | null;
+}
+
+export interface ReapplyBatchResponse {
+  batch_id: string;
+  total_found: number;
+  total_drafted: number;
+  drafts: ReapplyDraft[];
+}
+
+export interface ReapplyApprovedDraft {
+  original_app_id: string;
+  cover_email: CoverEmail;
+  hr_email?: string;    // optional override
+  attach_resume: boolean;
+  attach_cover_letter: boolean;
+}
+
+export interface ReapplySendResult {
+  original_app_id: string;
+  status: "sent" | "failed";
+  error: string | null;
+}
+
+export interface ReapplyConfirmResponse {
+  batch_id: string;
+  results: ReapplySendResult[];
+}
+
+/** Phase 1: Fetch historical applications in date range and re-draft emails. */
+export async function reapplyDraft(
+  start_date: string,
+  end_date: string,
+  status_filter?: string,
+): Promise<ReapplyBatchResponse> {
+  const res = await fetch(`${API_BASE}/api/mail/reapply/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ start_date, end_date, status_filter: status_filter || null }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Phase 2: Send approved re-drafted emails (writes to 'reapplications' collection only). */
+export async function reapplyConfirm(
+  batch_id: string,
+  approved_drafts: ReapplyApprovedDraft[],
+): Promise<ReapplyConfirmResponse> {
+  const res = await fetch(`${API_BASE}/api/mail/reapply/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ batch_id, approved_drafts }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}

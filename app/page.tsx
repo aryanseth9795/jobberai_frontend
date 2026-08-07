@@ -338,6 +338,7 @@ export default function Home() {
               <Link href="/forms" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Forms</Link>
               <Link href="/scraping" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Scraping</Link>
               <div style={{ width: 1, backgroundColor: "#e0e0e0", margin: "0 4px" }} />
+              <Link href="/reapply" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Re-Apply</Link>
               <Link href="/dashboard" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Dashboard</Link>
               <Link href="/profile" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Profile</Link>
             </nav>

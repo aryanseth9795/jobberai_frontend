@@ -511,6 +511,7 @@ export default function DashboardPage() {
         </div>
         <nav className="flex gap-2">
           <Link href="/" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Apply</Link>
+          <Link href="/reapply" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Re-Apply</Link>
           <Link href="/dashboard" className="btn-primary" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Dashboard</Link>
           <Link href="/profile" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Profile</Link>
         </nav>
