@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import AccountBar from "@/components/AccountBar";
 
 const inter = Inter({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], variable: "--font-inter" });
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={inter.variable} style={{ fontFamily: "var(--font-inter), Inter, sans-serif" }}>
+        <AccountBar />
         {children}
       </body>
     </html>

@@ -330,7 +330,6 @@ export default function DraftCard({ draft, approved, onToggleApprove, onUpdateEm
             company_name: draft.job_info.company_name,
             role: draft.job_info.role,
             hr_email: draft.job_info.hr_email,
-            applied_on: duplicate_details.applied_on,
           }}
         />
       )}
