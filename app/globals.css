@@ -1,565 +1,368 @@
 @import "tailwindcss";
 
-/* ═══════════════════════════════════════════
-   GOOGLE / GMAIL — DESIGN TOKENS (White Theme)
-═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   JOBBER — DESIGN TOKENS
+
+   Direction: a dispatch console. The product's real subject is volume and
+   silence — you send a hundred applications and hear back about six. So the
+   interface is built to be read at a glance by someone scanning for the rare
+   signal in a lot of noise, not to be admired.
+
+   THE ONE RULE THIS PALETTE ENCODES
+   ---------------------------------
+   Saturation means a human came back to you. `--signal` (burnt orange) is
+   reserved for `interview` and `offer` and appears nowhere else — not on
+   buttons, not in the logo, not on the "applied" series of a chart. Waiting
+   states are grey; closed ones are a recessive rose. The consequence is that
+   an empty dashboard is entirely greyscale, and the first warm mark on it
+   means somebody wrote back. Colour carries information here; it is not
+   decoration. Please keep it that way.
+
+   Interactive colour is `--accent`, a deep petrol that stays out of the way.
+
+   THEMING
+   -------
+   Light is defined on bare `:root` so every token has a value without any
+   media query or attribute in play. Dark is then applied twice — once for
+   people who never touch the toggle (system preference) and once for people
+   who did (`data-theme`). A token defined only inside one of those blocks
+   would break the toggle in one direction, so: no colour gets its only
+   definition below this comment.
+═══════════════════════════════════════════════════════════════════════════ */
+
 :root {
-  /* Backgrounds */
-  --bg-primary:     #f6f8fc;
-  --bg-secondary:   #ffffff;
-  --bg-card:        #ffffff;
-  --bg-card-hover:  #f1f3f4;
-  --bg-sidebar:     #f6f8fc;
+  /* ── Surfaces ── */
+  --bg:            #f6f7f8;
+  --surface:       #ffffff;
+  --surface-2:     #eef0f2;
+  --surface-3:     #e4e8ea;
+  --overlay:       rgb(16 20 24 / 0.45);
 
-  /* Borders */
-  --border:         #dadce0;
-  --border-hover:   #bdc1c6;
-  --border-active:  #1a73e8;
+  /* ── Lines ── */
+  --border:        #dfe3e6;
+  --border-strong: #c6cdd2;
 
-  /* Google Blue accent */
-  --accent:         #1a73e8;
-  --accent-hover:   #1557b0;
-  --accent-light:   #e8f0fe;
-  --accent-glow:    rgba(26, 115, 232, 0.1);
+  /* ── Text ── */
+  --text:          #101418;
+  --text-muted:    #5c6873;
+  --text-faint:    #8b969f;
+  --text-on-accent:#ffffff;
 
-  /* Status */
-  --success:        #1e8e3e;
-  --success-bg:     #e6f4ea;
-  --success-border: #34a853;
-  --danger:         #c5221f;
-  --danger-bg:      #fce8e6;
-  --danger-border:  #ea4335;
-  --warning:        #b06000;
-  --warning-bg:     #fef7e0;
-  --warning-border: #fbbc04;
+  /* ── Interactive ── */
+  --accent:        #1f4e5f;
+  --accent-hover:  #163a47;
+  --accent-soft:   #e6eef1;
+  --accent-line:   #b9d0d8;
+  --focus:         #2b7d97;
 
-  /* Text */
-  --text-primary:   #202124;
-  --text-secondary: #5f6368;
-  --text-muted:     #80868b;
-  --text-hud:       #1a73e8;
+  /* ── Signal: a human replied. Nothing else may use these. ── */
+  --signal:        #c2410c;
+  --signal-soft:   #fdeee5;
+  --signal-line:   #f3c3a6;
 
-  /* Gmail/Google specifics */
-  --gmail-bg:       #f6f8fc;
-  --gmail-surface:  #ffffff;
-  --gmail-blue:     #1a73e8;
-  --gmail-red:      #ea4335;
-  --gmail-border:   #e0e0e0;
-  --gmail-avatar:   #1a73e8;
-  --shadow-sm:      0 1px 2px rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
-  --shadow-md:      0 1px 3px rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
-  --shadow-lg:      0 2px 6px rgba(60,64,67,.3), 0 6px 18px 6px rgba(60,64,67,.15);
+  /* ── Closed, but answered ── */
+  --closed:        #9f1239;
+  --closed-soft:   #fdeaef;
+  --closed-line:   #f4c2cf;
+
+  /* ── Feedback (toasts, validation) ── */
+  --success:       #166534;
+  --success-soft:  #e8f4ec;
+  --success-line:  #b6dcc4;
+  --warning:       #854d0e;
+  --warning-soft:  #fbf1de;
+  --warning-line:  #e8ceA0;
+  --danger:        #9f1239;
+  --danger-soft:   #fdeaef;
+  --danger-line:   #f4c2cf;
+
+  /* ── Chart ink. Ordered; series 1 is the default "applied" grey-petrol. ── */
+  --chart-1:       #5b7f8c;
+  --chart-2:       #c2410c;
+  --chart-3:       #7a8b94;
+  --chart-4:       #2f6b7d;
+  --chart-5:       #a8b4bb;
+  --grid:          #e7eaec;
+
+  /* ── Radius: small and consistent. Controls are not pills. ── */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+
+  /* ── Elevation. Two levels only; a console does not float. ── */
+  --shadow-sm: 0 1px 2px rgb(16 20 24 / 0.06), 0 1px 1px rgb(16 20 24 / 0.04);
+  --shadow-md: 0 4px 12px rgb(16 20 24 / 0.10), 0 1px 3px rgb(16 20 24 / 0.06);
+
+  /* ── Layout ── */
+  --sidebar-w:           240px;
+  --sidebar-w-collapsed: 60px;
+  --topbar-h:            52px;
+
+  color-scheme: light;
 }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:            #0d1214;
+    --surface:       #141b1e;
+    --surface-2:     #1b2427;
+    --surface-3:     #232e32;
+    --overlay:       rgb(0 0 0 / 0.6);
+
+    --border:        #263236;
+    --border-strong: #37474d;
+
+    --text:          #e8edef;
+    --text-muted:    #8a9aa1;
+    --text-faint:    #67767d;
+    --text-on-accent:#08191f;
+
+    --accent:        #5ea9bf;
+    --accent-hover:  #7cbccf;
+    --accent-soft:   #14282f;
+    --accent-line:   #2a4d59;
+    --focus:         #6fc2db;
+
+    --signal:        #fb923c;
+    --signal-soft:   #2a1a0f;
+    --signal-line:   #59331a;
+
+    --closed:        #e86a85;
+    --closed-soft:   #2a1219;
+    --closed-line:   #56222f;
+
+    --success:       #3fb27f;
+    --success-soft:  #10241c;
+    --success-line:  #1f4436;
+    --warning:       #d9a441;
+    --warning-soft:  #241d0f;
+    --warning-line:  #4a3a1a;
+    --danger:        #e86a85;
+    --danger-soft:   #2a1219;
+    --danger-line:   #56222f;
+
+    --chart-1:       #6f9dad;
+    --chart-2:       #fb923c;
+    --chart-3:       #7f8f97;
+    --chart-4:       #4d93a8;
+    --chart-5:       #566469;
+    --grid:          #1f2a2e;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+    --shadow-md: 0 6px 20px rgb(0 0 0 / 0.55);
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg:            #0d1214;
+  --surface:       #141b1e;
+  --surface-2:     #1b2427;
+  --surface-3:     #232e32;
+  --overlay:       rgb(0 0 0 / 0.6);
+
+  --border:        #263236;
+  --border-strong: #37474d;
+
+  --text:          #e8edef;
+  --text-muted:    #8a9aa1;
+  --text-faint:    #67767d;
+  --text-on-accent:#08191f;
+
+  --accent:        #5ea9bf;
+  --accent-hover:  #7cbccf;
+  --accent-soft:   #14282f;
+  --accent-line:   #2a4d59;
+  --focus:         #6fc2db;
+
+  --signal:        #fb923c;
+  --signal-soft:   #2a1a0f;
+  --signal-line:   #59331a;
+
+  --closed:        #e86a85;
+  --closed-soft:   #2a1219;
+  --closed-line:   #56222f;
+
+  --success:       #3fb27f;
+  --success-soft:  #10241c;
+  --success-line:  #1f4436;
+  --warning:       #d9a441;
+  --warning-soft:  #241d0f;
+  --warning-line:  #4a3a1a;
+  --danger:        #e86a85;
+  --danger-soft:   #2a1219;
+  --danger-line:   #56222f;
+
+  --chart-1:       #6f9dad;
+  --chart-2:       #fb923c;
+  --chart-3:       #7f8f97;
+  --chart-4:       #4d93a8;
+  --chart-5:       #566469;
+  --grid:          #1f2a2e;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-md: 0 6px 20px rgb(0 0 0 / 0.55);
+
+  color-scheme: dark;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TAILWIND BRIDGE
+   `inline` so the generated utilities resolve `var(--…)` at use time rather
+   than baking today's value in — which is what lets one set of classes serve
+   both themes with no `dark:` duplicates.
+═══════════════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --color-bg:            var(--bg);
+  --color-surface:       var(--surface);
+  --color-surface-2:     var(--surface-2);
+  --color-surface-3:     var(--surface-3);
+  --color-border:        var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text:          var(--text);
+  --color-muted:         var(--text-muted);
+  --color-faint:         var(--text-faint);
+  --color-accent:        var(--accent);
+  --color-accent-soft:   var(--accent-soft);
+  --color-accent-line:   var(--accent-line);
+  --color-signal:        var(--signal);
+  --color-signal-soft:   var(--signal-soft);
+  --color-signal-line:   var(--signal-line);
+  --color-closed:        var(--closed);
+  --color-success:       var(--success);
+  --color-warning:       var(--warning);
+  --color-danger:        var(--danger);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+
+  --font-display: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
+  --font-sans:    var(--font-plex-sans), "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono:    var(--font-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
+}
+
+/* Kept so a future component can opt into an explicit dark-only rule. The
+   token layer above means almost nothing should need it. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════════════════════════════════ */
 
 * { box-sizing: border-box; }
 
-/* ═══════════════════════════════════════════
-   BASE
-═══════════════════════════════════════════ */
+html { -webkit-text-size-adjust: 100%; }
+
 body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  margin: 0;
   min-height: 100vh;
-  font-family: "Google Sans", "Roboto", "Inter", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-plex-sans), "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #f1f3f4; }
-::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
-
-/* ═══════════════════════════════════════════
-   NO HUD BACKGROUND (white page instead)
-═══════════════════════════════════════════ */
-.hud-bg { display: none; }
-.hud-grid,
-.hud-scan-line,
-.hud-vignette,
-.hud-arc-left,
-.hud-arc-right { display: none; }
-
-/* ═══════════════════════════════════════════
-   TYPOGRAPHY
-═══════════════════════════════════════════ */
-.font-hud  { font-family: "Google Sans", "Roboto", sans-serif; }
-.font-mono { font-family: "Roboto Mono", monospace; }
-
-/* Replace jarvis-title with Google-style heading */
-.jarvis-title {
-  font-family: "Google Sans", "Roboto", sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-transform: none;
-  background: none;
-  -webkit-text-fill-color: var(--text-primary);
-  color: var(--text-primary);
-  filter: none;
+h1, h2, h3, h4 {
+  font-family: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0;
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+/* Every figure in this app sits in a column that has to be scannable — a
+   count, a date, a rate. Proportional digits make those columns jitter. */
+.tabular, table, .stat, time { font-variant-numeric: tabular-nums; }
 
-.hud-label {
-  font-family: "Roboto Mono", "Google Sans", monospace;
+.font-display { font-family: var(--font-space-grotesk), "Space Grotesk", sans-serif; }
+.font-mono    { font-family: var(--font-plex-mono), "IBM Plex Mono", monospace; }
+
+/* The small uppercase label used for column heads, stat captions, and
+   section eyebrows. One definition so they never drift apart. */
+.label {
+  font-family: var(--font-plex-mono), "IBM Plex Mono", monospace;
   font-size: 10px;
-  letter-spacing: 0.05em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-faint);
 }
 
-/* ═══════════════════════════════════════════
-   CARDS
-═══════════════════════════════════════════ */
-.hud-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  transition: box-shadow 0.2s ease;
+a { color: inherit; text-decoration: none; }
+
+::selection { background: var(--accent-soft); color: var(--text); }
+
+/* ── Focus ──
+   Never removed, only redirected: `:focus-visible` keeps the ring off mouse
+   clicks while leaving it fully intact for keyboard navigation. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+  border: 3px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOTION
+   One shared duration and curve. Anything that moves must also stand still
+   for someone who asked the OS for that.
+═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fade-in     { from { opacity: 0 } to { opacity: 1 } }
+@keyframes rise        { from { opacity: 0; transform: translateY(4px) } to { opacity: 1; transform: none } }
+@keyframes spin        { to { transform: rotate(360deg) } }
+@keyframes shimmer     { 100% { transform: translateX(100%) } }
+@keyframes slide-in    { from { opacity: 0; transform: translateY(8px) scale(0.98) } to { opacity: 1; transform: none } }
+
+.animate-fade  { animation: fade-in 160ms ease-out both; }
+.animate-rise  { animation: rise 200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide { animation: slide-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SKELETON
+   A shape the size of the thing that is coming, so the layout does not jump
+   when it arrives.
+═══════════════════════════════════════════════════════════════════════════ */
+
+.skeleton {
   position: relative;
   overflow: hidden;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
 }
-.hud-card::before { display: none; }
-.hud-card:hover {
-  border-color: var(--border-hover);
-  box-shadow: var(--shadow-sm);
-}
-
-/* Remove corner brackets */
-.hud-bracket::before,
-.hud-bracket::after { display: none; }
-
-.glass-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  transition: box-shadow 0.2s ease;
-  position: relative;
-}
-.glass-card:hover {
-  box-shadow: var(--shadow-sm);
-}
-
-/* ═══════════════════════════════════════════
-   BUTTONS — Google Material style
-═══════════════════════════════════════════ */
-.btn-primary {
-  background: var(--accent);
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 20px;
-  font-family: "Google Sans", "Roboto", sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  cursor: pointer;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 1px 2px rgba(60,64,67,.3);
-}
-.btn-primary::before { display: none; }
-.btn-primary:hover {
-  background: var(--accent-hover);
-  box-shadow: var(--shadow-sm);
-}
-.btn-primary:disabled {
-  background: #e0e0e0;
-  color: #9e9e9e;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.btn-success {
-  background: #1e8e3e;
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 20px;
-  font-family: "Google Sans", "Roboto", sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 1px 2px rgba(60,64,67,.3);
-}
-.btn-success:hover {
-  background: #137333;
-  box-shadow: var(--shadow-sm);
-}
-.btn-success:disabled {
-  background: #e0e0e0;
-  color: #9e9e9e;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 7px 16px;
-  font-family: "Google Sans", "Roboto", sans-serif;
-  font-weight: 500;
-  font-size: 14px;
-  text-transform: none;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-.btn-ghost:hover {
-  background: var(--accent-light);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* ═══════════════════════════════════════════
-   BADGES — Google chip style
-═══════════════════════════════════════════ */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-family: "Google Sans", "Roboto", sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-.badge-drafted   { background: #e8f0fe; color: #1a73e8; border: 1px solid #c9d9fa; }
-.badge-duplicate { background: var(--warning-bg); color: var(--warning); border: 1px solid #fce39e; }
-.badge-error     { background: var(--danger-bg); color: var(--danger); border: 1px solid #f5c6c5; }
-.badge-approved  { background: var(--success-bg); color: var(--success); border: 1px solid #a8d5b5; }
-.badge-rejected  { background: var(--danger-bg); color: var(--danger); border: 1px solid #f5c6c5; }
-.badge-sent      { background: var(--success-bg); color: var(--success); border: 1px solid #a8d5b5; }
-.badge-failed    { background: var(--danger-bg); color: var(--danger); border: 1px solid #f5c6c5; }
-
-/* ═══════════════════════════════════════════
-   SPINNER
-═══════════════════════════════════════════ */
-@keyframes spin { to { transform: rotate(360deg); } }
-.spinner {
-  width: 18px; height: 18px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-.spinner-blue {
-  width: 18px; height: 18px;
-  border: 2px solid var(--accent-light);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-/* ═══════════════════════════════════════════
-   ANIMATIONS
-═══════════════════════════════════════════ */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
-}
-.fade-in { animation: fadeIn 0.25s ease forwards; }
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
-}
-.cursor-blink { animation: blink 1s step-end infinite; }
-
-/* ═══════════════════════════════════════════
-   STEP INDICATOR
-═══════════════════════════════════════════ */
-.step-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: #e0e0e0;
-  transition: all 0.3s ease;
-}
-.step-dot.active { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
-.step-dot.done   { background: var(--success); }
-
-/* ═══════════════════════════════════════════
-   DIVIDER
-═══════════════════════════════════════════ */
-.hud-divider {
-  height: 1px;
-  background: var(--border);
-}
-
-/* ═══════════════════════════════════════════
-   AGENT PIPELINE — Google Stepper style
-═══════════════════════════════════════════ */
-.pipeline-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  position: relative;
-}
-
-.pipeline-node-dot {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  border: 2px solid #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  transition: all 0.3s ease;
-  background: #ffffff;
-}
-
-.pipeline-node-dot.idle {
-  border-color: #e0e0e0;
-  color: #9e9e9e;
-  background: #f5f5f5;
-}
-.pipeline-node-dot.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
-  box-shadow: 0 0 0 4px rgba(26,115,232,.12);
-  animation: none;
-}
-.pipeline-node-dot.active::after { display: none; }
-.pipeline-node-dot.done {
-  border-color: var(--success);
-  color: #ffffff;
-  background: var(--success);
-}
-.pipeline-node-dot.error {
-  border-color: var(--danger);
-  color: var(--danger);
-  background: var(--danger-bg);
-}
-
-.pipeline-connector {
-  height: 2px;
-  flex: 1;
-  background: #e0e0e0;
-  position: relative;
-  overflow: hidden;
-  transition: background 0.4s ease;
-}
-.pipeline-connector.active { background: var(--accent-light); }
-.pipeline-connector.active::after {
+.skeleton::after {
   content: "";
   position: absolute;
-  left: -100%; top: 0;
-  width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  animation: connectorFlow 1.2s ease-in-out infinite;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--surface-3), transparent);
+  animation: shimmer 1.4s infinite;
 }
-.pipeline-connector.done {
-  background: var(--success);
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { display: none; }
 }
-
-@keyframes connectorFlow {
-  0%   { left: -100%; }
-  100% { left: 100%; }
-}
-
-/* ═══════════════════════════════════════════
-   UPLOAD ZONE — Google Drive style
-═══════════════════════════════════════════ */
-.upload-zone {
-  border: 2px dashed var(--border);
-  background: var(--bg-card);
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-}
-.upload-zone::before { display: none; }
-.upload-zone:hover {
-  border-color: var(--accent);
-  background: var(--accent-light);
-}
-.upload-zone.dragging {
-  border-color: var(--accent);
-  background: var(--accent-light);
-  box-shadow: 0 0 0 4px rgba(26,115,232,.08);
-}
-
-/* ═══════════════════════════════════════════
-   STAT COUNTER
-═══════════════════════════════════════════ */
-.stat-block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.stat-value {
-  font-family: "Google Sans", "Roboto", sans-serif;
-  font-size: 28px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--text-primary);
-}
-.stat-label {
-  font-family: "Roboto", sans-serif;
-  font-size: 11px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* ═══════════════════════════════════════════
-   LIVE INDICATOR
-═══════════════════════════════════════════ */
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-}
-.live-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--success);
-  display: inline-block;
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-/* ═══════════════════════════════════════════
-   GMAIL PREVIEW STYLES
-═══════════════════════════════════════════ */
-.gmail-preview {
-  background: #ffffff;
-  border: 1px solid var(--gmail-border);
-  border-radius: 8px;
-  overflow: hidden;
-  font-family: "Roboto", "Google Sans", sans-serif;
-}
-
-.gmail-preview-header {
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid #f1f3f4;
-}
-
-.gmail-subject-line {
-  font-size: 20px;
-  font-weight: 500;
-  color: #202124;
-  margin: 0 0 12px 0;
-  line-height: 1.3;
-}
-
-.gmail-sender-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.gmail-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #1a73e8;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 600;
-  flex-shrink: 0;
-  font-family: "Google Sans", sans-serif;
-}
-
-.gmail-sender-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.gmail-sender-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #202124;
-  line-height: 1.4;
-}
-
-.gmail-sender-email {
-  font-size: 12px;
-  color: #5f6368;
-  margin-top: 1px;
-}
-
-.gmail-to-line {
-  font-size: 12px;
-  color: #5f6368;
-  margin-top: 4px;
-}
-
-.gmail-timestamp {
-  font-size: 12px;
-  color: #5f6368;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.gmail-body {
-  padding: 20px;
-  font-size: 14px;
-  line-height: 1.7;
-  color: #202124;
-  white-space: pre-wrap;
-  word-break: break-word;
-  background: #ffffff;
-}
-
-.gmail-attachment-bar {
-  padding: 12px 20px;
-  border-top: 1px solid #f1f3f4;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  background: #fafafa;
-}
-
-.gmail-attachment-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #fff;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #202124;
-  transition: box-shadow 0.15s;
-}
-.gmail-attachment-chip:hover {
-  box-shadow: var(--shadow-sm);
-  border-color: var(--accent);
-}
-.gmail-attachment-chip svg,
-.gmail-attachment-chip .attach-icon {
-  color: #ea4335;
-  font-size: 14px;
-}
-
-.gmail-expand-btn {
-  display: block;
-  width: 100%;
-  padding: 8px 20px;
-  background: #f8f9fa;
-  border-top: 1px solid #f1f3f4;
-  text-align: center;
-  font-size: 12px;
-  color: var(--accent);
-  cursor: pointer;
-  border: none;
-  transition: background 0.15s;
-}
-.gmail-expand-btn:hover { background: var(--accent-light); }
