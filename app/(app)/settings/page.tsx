@@ -124,13 +124,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
-  const [firstRun, setFirstRun] = useState(false);
-
-  useEffect(() => {
-    // Read after mount rather than with useSearchParams: this only drives a
-    // banner, and reading it during render would force a Suspense boundary.
-    setFirstRun(new URLSearchParams(window.location.search).get("first_run") === "1");
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -212,23 +205,12 @@ export default function SettingsPage() {
           per-account — nothing here is shared with other users.
         </p>
 
-        {firstRun && (
-          <div
-            className="mb-6 px-4 py-3 rounded"
-            style={{
-              background: "var(--accent-light)",
-              border: "1px solid var(--border-active)",
-              color: "var(--text-primary)",
-              fontSize: 13,
-            }}
-          >
-            <strong>Welcome.</strong> Before you can draft anything, add a Gemini
-            API key and your full name below — drafting refuses rather than
-            inventing a name to sign off with.
-          </div>
-        )}
+        {/* The `first_run=1` welcome banner that used to sit here is gone:
+            registration now routes to /onboarding, which requires a name and a
+            Gemini key before the app is reachable at all, so the state that
+            banner described can no longer exist. */}
 
-        {needsName && !firstRun && (
+        {needsName && (
           <div
             className="mb-6 px-4 py-3 rounded flex items-start gap-2"
             style={{

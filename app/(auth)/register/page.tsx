@@ -3,22 +3,25 @@
 import AuthForm from "@/components/AuthForm";
 import { register } from "@/lib/api";
 import { setTokens } from "@/lib/auth";
+import { clearOnboarded } from "@/lib/onboarding";
 
 export default function RegisterPage() {
   const handleRegister = async (email: string, password: string) => {
     const pair = await register(email, password);
     setTokens(pair);
 
-    // Straight to settings rather than the app: a brand-new account has no
-    // Gemini key and no full_name, and drafting refuses without both. Landing
-    // on the apply page would mean the user's first action fails.
-    window.location.replace("/settings?first_run=1");
+    // A brand-new account has completed none of the four setup steps, so clear
+    // any hint cookie left behind by a previous account on this browser —
+    // otherwise proxy.ts waves the new user straight into an app whose every
+    // action returns 403.
+    clearOnboarded();
+    window.location.replace("/onboarding");
   };
 
   return (
     <AuthForm
       title="Create your account"
-      subtitle="AI-powered job application automation"
+      subtitle="Set up takes about two minutes."
       submitLabel="Create account"
       onSubmit={handleRegister}
       passwordAutoComplete="new-password"

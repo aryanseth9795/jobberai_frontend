@@ -12,9 +12,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { REFRESH_COOKIE } from "./lib/config";
+import { ONBOARDED_COOKIE, REFRESH_COOKIE } from "./lib/config";
 
 const PUBLIC_PATHS = ["/login", "/register"];
+
+const ONBOARDING_PATH = "/onboarding";
 
 /**
  * Gate on the *refresh* cookie, not the access cookie.
@@ -36,6 +38,7 @@ export function proxy(req: NextRequest) {
   const isPublic = PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
+  const isOnboarding = pathname === ONBOARDING_PATH;
 
   if (!hasSession && !isPublic) {
     const url = new URL("/login", req.url);
@@ -46,6 +49,29 @@ export function proxy(req: NextRequest) {
   // Someone with a live session has no business on the login form.
   if (hasSession && isPublic) {
     return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  // ── The onboarding gate, edge half ──
+  //
+  // Presence-only, exactly like the session check above and for exactly the
+  // same reason: the truth lives on the server, which re-derives all four
+  // steps on every request and answers 403 until they are done. This cookie
+  // only avoids rendering a page the user is about to be thrown out of.
+  //
+  // Forging it therefore buys one page render: the first API call that page
+  // makes returns the 403, and lib/api.ts clears the cookie and redirects
+  // here. That is the same "stale-but-present token passes middleware and gets
+  // cleaned up by the API" flow the session gate already relies on.
+  if (hasSession) {
+    const onboarded = req.cookies.has(ONBOARDED_COOKIE);
+    if (!onboarded && !isOnboarding) {
+      return NextResponse.redirect(new URL(ONBOARDING_PATH, req.url));
+    }
+    // Finished users have no route back into the wizard. Without this, the
+    // last step's own redirect would race the cookie write and bounce.
+    if (onboarded && isOnboarding) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
   }
 
   return NextResponse.next();

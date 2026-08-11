@@ -12,6 +12,12 @@ import {
   getRefreshToken,
   refreshAccessToken,
 } from "./auth";
+import {
+  ONBOARDING_INCOMPLETE_CODE,
+  clearOnboarded,
+  syncOnboardedCookie,
+  type OnboardingState,
+} from "./onboarding";
 
 export { API_BASE };
 
@@ -30,6 +36,38 @@ function buildHeaders(init: RequestInit, token: string | null): Headers {
     headers.set("Content-Type", "application/json");
   }
   return headers;
+}
+
+/**
+ * Send an un-onboarded caller to the wizard.
+ *
+ * The backend's `require_onboarded` (modules/auth/onboarding.py) answers 403
+ * with `detail.code === "onboarding_incomplete"` on every route that drafts,
+ * sends, fills or scrapes. That 403 is the *real* gate; the cookie proxy.ts
+ * reads is only a hint, and this is what keeps the hint honest — a forged or
+ * stale cookie gets one page render and then lands here.
+ *
+ * Returns whether it handled the response, so callers know not to also throw
+ * the body as an ordinary error while the browser is already navigating away.
+ */
+async function redirectIfNotOnboarded(res: Response): Promise<boolean> {
+  if (res.status !== 403) return false;
+
+  // The body has to be read to classify it, and a Response body can only be
+  // read once — so this works on a clone and leaves the original intact for
+  // the caller's own error handling when it turns out to be a different 403.
+  const payload = await res
+    .clone()
+    .json()
+    .catch(() => null);
+
+  if (payload?.detail?.code !== ONBOARDING_INCOMPLETE_CODE) return false;
+
+  clearOnboarded();
+  if (typeof window !== "undefined" && window.location.pathname !== "/onboarding") {
+    window.location.replace("/onboarding");
+  }
+  return true;
 }
 
 /**
@@ -54,7 +92,10 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
     ...init,
     headers: buildHeaders(init, token),
   });
-  if (res.status !== 401) return res;
+  if (res.status !== 401) {
+    await redirectIfNotOnboarded(res);
+    return res;
+  }
 
   const refreshed = await refreshAccessToken();
   // refreshAccessToken() has already redirected to /login if the refresh
@@ -62,10 +103,12 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
   // network failed — hand back the original 401 rather than inventing one.
   if (!refreshed) return res;
 
-  return fetch(`${API_BASE}${path}`, {
+  const retried = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: buildHeaders(init, refreshed),
   });
+  await redirectIfNotOnboarded(retried);
+  return retried;
 }
 
 /**
@@ -148,6 +191,15 @@ export async function login(email: string, password: string): Promise<TokenPair>
 
 export async function getMe(): Promise<UserPublic> {
   return apiGet<UserPublic>("/api/auth/me");
+}
+
+// ── Onboarding ───────────────────────────────────────────────────────────
+
+/** The caller's four-step setup state. Reconciles the hint cookie proxy.ts
+ *  reads on the way through, so the two can never be fetched independently and
+ *  left disagreeing. */
+export async function getOnboarding(): Promise<OnboardingState> {
+  return syncOnboardedCookie(await apiGet<OnboardingState>("/api/auth/me/onboarding"));
 }
 
 // ── Settings: API keys + candidate identity ──────────────────────────────
@@ -352,6 +404,38 @@ export async function getJobStats(): Promise<DashboardStats> {
   return apiGet<DashboardStats>("/api/shared/jobs/stats");
 }
 
+export interface AnalyticsPoint {
+  date: string;
+  applied: number;
+  responded: number;
+}
+
+export interface FunnelStage {
+  stage: string;
+  count: number;
+}
+
+export interface Analytics {
+  days: number;
+  /** Zero-filled across the whole window for a bounded range, so a quiet week
+   *  draws as a flat line rather than a gap the chart closes over. */
+  series: AnalyticsPoint[];
+  by_status: Record<string, number>;
+  funnel: FunnelStage[];
+  total: number;
+  responded: number;
+  /** 0–1. Denominator excludes failed sends — an email that never left cannot
+   *  be ignored by a recruiter. */
+  response_rate: number;
+  top_companies: { company: string; count: number }[];
+  forms: number;
+}
+
+/** `days = 0` means all time. */
+export async function getAnalytics(days: number): Promise<Analytics> {
+  return apiGet<Analytics>(`/api/shared/jobs/analytics?days=${days}`);
+}
+
 // Update status of an application
 export async function updateJobStatus(id: string, status: string): Promise<void> {
   return apiVoid(
@@ -402,6 +486,34 @@ export interface UploadedFiles {
 
 export async function getUploadedFiles(): Promise<UploadedFiles> {
   return apiGet<UploadedFiles>("/api/shared/profile/uploads");
+}
+
+/**
+ * Upload one document under its canonical name.
+ *
+ * Distinct from `ingestProfile`, which files a document by sniffing the name
+ * the user gave it — a résumé called `Alice_2026.pdf` goes in as
+ * `Alice_2026.pdf`, is never attached to an outgoing application, and can
+ * never satisfy the onboarding résumé step. This route is told the kind, so it
+ * does not guess. Ingests in the same call.
+ */
+export async function uploadCanonicalFile(
+  fileType: "resume" | "cover_letter",
+  file: File
+): Promise<{
+  status: string;
+  message: string;
+  file_type: string;
+  filename: string;
+  size_bytes: number;
+  chunks_ingested: number;
+  sources: string[];
+}> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return readJson(
+    await authFetch(`/api/shared/profile/uploads/${fileType}`, { method: "POST", body: formData })
+  );
 }
 
 // Delete an uploaded file
