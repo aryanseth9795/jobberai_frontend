@@ -1,8 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { JobListing, ScrapeRequest, ScrapeResponse, triggerScrape, getScrapedJobs } from "@/lib/api";
+import { ExternalLink, Radar, Search } from "lucide-react";
+
+import { getScrapedJobs, triggerScrape, type JobListing, type ScrapeResponse } from "@/lib/api";
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  ErrorNote,
+  Skeleton,
+  useToast,
+} from "@/components/ui";
 
 const TARGET_ROLES = [
   "Frontend React Developer",
@@ -19,146 +31,218 @@ const TARGET_ROLES = [
   "Express / Node Developer",
 ];
 
+function JobCard({ job }: { job: JobListing }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <div className="mb-1.5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-[14px] font-semibold">{job.role}</h3>
+          <p className="mt-0.5 truncate text-[12.5px] text-muted">
+            {job.company_name || "Company not listed"}
+            {job.location ? ` · ${job.location}` : ""}
+          </p>
+        </div>
+        {job.salary && <Badge tone="accent">{job.salary}</Badge>}
+      </div>
+
+      {(job.description || job.company_detail) && (
+        <p className="line-clamp-2 text-[12.5px] text-muted">{job.description || job.company_detail}</p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2.5">
+        <span className="text-[11.5px] text-faint">
+          {job.source_site}
+          {job.experience_required ? ` · ${job.experience_required}` : ""}
+        </span>
+        {job.job_apply_link && (
+          <a
+            href={job.job_apply_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[12.5px] text-accent hover:underline"
+          >
+            Open listing <ExternalLink size={11} />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ScrapingPage() {
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const toast = useToast();
+  const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scrapeResult, setScrapeResult] = useState<ScrapeResponse | null>(null);
+  const [result, setResult] = useState<ScrapeResponse | null>(null);
+  const [previous, setPrevious] = useState<JobListing[] | null>(null);
+  const [loadingPrevious, setLoadingPrevious] = useState(false);
 
-  const toggleRole = (role: string) => {
-    setSelectedRoles(prev => 
-      prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
-    );
-  };
+  const toggle = (role: string) =>
+    setSelected((prev) => (prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]));
 
   const handleScrape = async () => {
     setLoading(true);
     setError(null);
-    setScrapeResult(null);
+    setResult(null);
     try {
-      // In a real app we'd trigger a background job and poll, but for this MVP we await
-      const res = await triggerScrape({ roles: selectedRoles, max_results_per_role: 10 });
-      setScrapeResult(res);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Scraping failed");
+      const res = await triggerScrape({ roles: selected, max_results_per_role: 10 });
+      setResult(res);
+      toast.success(
+        res.new_jobs === 0
+          ? "Search finished — nothing new this time."
+          : `Found ${res.new_jobs} new listing${res.new_jobs === 1 ? "" : "s"}.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The search failed.");
     } finally {
       setLoading(false);
     }
   };
 
+  const loadPrevious = async () => {
+    setLoadingPrevious(true);
+    try {
+      const { jobs } = await getScrapedJobs({ limit: 40 });
+      setPrevious(jobs);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load earlier results.");
+    } finally {
+      setLoadingPrevious(false);
+    }
+  };
+
   return (
-    <main className="min-h-screen flex flex-col" style={{ background: "#f6f8fc" }}>
-      {/* ─── HEADER ─── */}
-      <header style={{ background: "#ffffff", borderBottom: "1px solid #e0e0e0", position: "sticky", top: 0, zIndex: 40 }}>
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: "#1a73e8", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
-              🕵️
-            </div>
-            <div>
-              <p style={{ fontWeight: 600, fontSize: 16, color: "#202124", fontFamily: '"Google Sans", Roboto, sans-serif', lineHeight: 1.2 }}>Job Scraper</p>
-              <p style={{ fontSize: 11, color: "#5f6368", fontFamily: "Roboto, sans-serif" }}>Autonomous stealth job hunting</p>
-            </div>
-          </div>
-          <nav className="flex gap-2">
-            <Link href="/" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Mail</Link>
-            <Link href="/forms" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Forms</Link>
-            <Link href="/scraping" className="btn-primary" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Scraping</Link>
-            <div style={{ width: 1, backgroundColor: "#e0e0e0", margin: "0 4px" }} />
-            <Link href="/dashboard" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Dashboard</Link>
-            <Link href="/profile" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Profile</Link>
-          </nav>
-        </div>
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+      <header className="mb-5">
+        <h1 className="font-display text-[22px] font-semibold">Find jobs</h1>
+        <p className="mt-0.5 text-[13px] text-muted">
+          Search job boards for openings matching the roles you want.
+        </p>
       </header>
 
-      <div className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
-        <div className="text-center mb-8 fade-in">
-          <h1 style={{ fontSize: 36, fontWeight: 700, color: "#202124", fontFamily: '"Google Sans", Roboto, sans-serif', marginBottom: 12, letterSpacing: "-0.01em" }}>
-            Scrape Job Listings
-          </h1>
-          <p style={{ color: "#5f6368", fontSize: 16, maxWidth: 520, margin: "0 auto", lineHeight: 1.6 }}>
-            Select target roles to search the web using headless browsers. The agent automatically bypasses bot checks and skips unallowed sites.
-          </p>
-        </div>
-
-        <div className="hud-card p-6 mb-8 fade-in">
-          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Select Roles to Target</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-            {TARGET_ROLES.map(role => (
-              <label key={role} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-all">
-                <input 
-                  type="checkbox" 
-                  checked={selectedRoles.includes(role)} 
-                  onChange={() => toggleRole(role)}
-                  style={{ accentColor: "#1a73e8", width: 16, height: 16 }}
+      <Card className="mb-4">
+        <CardHeader
+          title="Roles to search for"
+          description="Leave everything unticked to search all of them."
+        />
+        <CardBody>
+          <div className="grid gap-1 sm:grid-cols-2 md:grid-cols-3">
+            {TARGET_ROLES.map((role) => (
+              <label
+                key={role}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[12.5px] hover:bg-surface-2"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.includes(role)}
+                  onChange={() => toggle(role)}
+                  className="h-3.5 w-3.5 shrink-0 accent-[var(--accent)]"
                 />
-                <span style={{ fontSize: 14, color: "#3c4043" }}>{role}</span>
+                <span className="min-w-0 truncate">{role}</span>
               </label>
             ))}
           </div>
 
-          <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-2">
-             <div className="text-sm text-gray-500">
-               {selectedRoles.length === 0 ? "All roles will be searched if none selected" : `${selectedRoles.length} roles selected`}
-             </div>
-             <button
-               className="btn-primary flex items-center gap-2"
-               onClick={handleScrape}
-               disabled={loading}
-               style={{ padding: "10px 24px", fontSize: 14, borderRadius: 20 }}
-             >
-               {loading ? <><div className="spinner" /> Scraping Web...</> : <>🚀 Start Scraping</>}
-             </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="hud-card fade-in mb-6" style={{ padding: 12, borderColor: "#ea4335", background: "#fce8e6", borderRadius: 8 }}>
-            <p style={{ fontSize: 13, color: "#c5221f", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16 }}>⚠</span> {error}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+            <p className="text-[12px] text-muted">
+              {selected.length === 0
+                ? `Searching all ${TARGET_ROLES.length} roles`
+                : `${selected.length} role${selected.length === 1 ? "" : "s"} selected`}
             </p>
+            <div className="flex items-center gap-2">
+              {selected.length > 0 && (
+                <Button size="sm" variant="ghost" onClick={() => setSelected([])}>
+                  Clear
+                </Button>
+              )}
+              <Button variant="primary" icon={<Search size={13} />} loading={loading} onClick={handleScrape}>
+                {loading ? "Searching…" : "Search"}
+              </Button>
+            </div>
           </div>
-        )}
 
-        {scrapeResult && (
-          <div className="fade-in mb-8">
-            <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>
-              Results Found: {scrapeResult.new_jobs} new ({scrapeResult.duplicates_skipped} duplicates skipped)
+          {/* Honest about the wait: this drives real headless browsers across
+              several sites, and a silent two-minute spinner reads as a hang. */}
+          {loading && (
+            <p className="mt-3 text-[12px] text-muted">
+              This opens each job board in turn, so it can take a couple of minutes. You can
+              leave this page — results are saved either way.
+            </p>
+          )}
+        </CardBody>
+      </Card>
+
+      {error && (
+        <div className="mb-4">
+          <ErrorNote action={<Button size="sm" variant="ghost" onClick={handleScrape}>Retry</Button>}>
+            {error}
+          </ErrorNote>
+        </div>
+      )}
+
+      {result && (
+        <section className="mb-4">
+          <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-[15px] font-semibold">
+              {result.new_jobs} new listing{result.new_jobs === 1 ? "" : "s"}
             </h2>
-            
-            {scrapeResult.jobs.length === 0 ? (
-              <div className="hud-card p-8 text-center text-gray-500">
-                No new jobs found matching the criteria.
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {scrapeResult.jobs.map((job, idx) => (
-                  <div key={idx} className="hud-card p-5 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-2">
-                       <div>
-                         <h3 className="text-lg font-bold text-gray-900">{job.role}</h3>
-                         <p className="text-sm font-medium text-blue-600">{job.company_name || 'Hidden Company'} • {job.location || 'Remote'}</p>
-                       </div>
-                       {job.salary && <span className="bg-green-50 text-green-700 px-2 py-1 rounded text-xs font-semibold border border-green-200">{job.salary}</span>}
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2 mt-2">{job.description || job.company_detail}</p>
-                    <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                       <div className="text-xs text-gray-400">
-                          Found via: {job.source_site} | Exp: {job.experience_required || "Not specified"}
-                       </div>
-                       {job.job_apply_link && (
-                         <a href={job.job_apply_link} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline">
-                           Apply External →
-                         </a>
-                       )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {result.duplicates_skipped > 0 && (
+              <span className="text-[12px] text-muted">
+                {result.duplicates_skipped} already seen, skipped
+              </span>
             )}
           </div>
-        )}
-      </div>
-    </main>
+
+          {result.jobs.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={<Radar size={18} />}
+                title="Nothing new this time"
+                body="Every listing found was one you had already seen. Try different roles, or come back tomorrow."
+              />
+            </Card>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {result.jobs.map((job, i) => (
+                <JobCard key={job.job_apply_link || `${job.role}-${i}`} job={job} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Everything found before, which otherwise had no route into the UI at
+          all — the endpoint existed and nothing called it. */}
+      <section>
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <h2 className="font-display text-[15px] font-semibold">Earlier results</h2>
+          {previous === null && (
+            <Button size="sm" variant="ghost" loading={loadingPrevious} onClick={loadPrevious}>
+              Show
+            </Button>
+          )}
+        </div>
+
+        {loadingPrevious && <Skeleton className="h-24 rounded-lg" />}
+
+        {previous !== null &&
+          (previous.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon={<Radar size={18} />}
+                title="No saved listings yet"
+                body="Run a search above and anything found is kept here."
+              />
+            </Card>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {previous.map((job, i) => (
+                <JobCard key={job.job_apply_link || `${job.role}-${i}`} job={job} />
+              ))}
+            </div>
+          ))}
+      </section>
+    </div>
   );
 }

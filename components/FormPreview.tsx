@@ -1,84 +1,101 @@
 "use client";
 
 import { useState } from "react";
-import { FormFillPreview, FormAnswer } from "@/lib/api";
-import AnswerCard from "./AnswerCard";
-import { ExternalLink, CheckCircle } from "lucide-react";
+import Image from "next/image";
+import { Check } from "lucide-react";
 
-interface FormPreviewProps {
+import type { FormAnswer, FormFillPreview } from "@/lib/api";
+import { Badge, Button, Card, CardBody, CardHeader } from "@/components/ui";
+import AnswerCard from "./AnswerCard";
+
+export default function FormPreview({
+  preview,
+  onEditAnswer,
+  onApprove,
+  isApprovable,
+  approving = false,
+}: {
   preview: FormFillPreview;
-  onEditAnswer: (field_id: string, new_answer: string | string[]) => void;
+  onEditAnswer: (fieldId: string, value: string | string[]) => void;
   onApprove: () => void;
   isApprovable: boolean;
-}
+  approving?: boolean;
+}) {
+  const [editingAny, setEditingAny] = useState(false);
 
-export default function FormPreview({ preview, onEditAnswer, onApprove, isApprovable }: FormPreviewProps) {
-  const [isEditingAny, setIsEditingAny] = useState(false);
+  const fields = preview.fields ?? [];
+  const answers = preview.answers ?? [];
+  const answerFor = (fieldId: string): FormAnswer | undefined =>
+    answers.find((a) => a.field_id === fieldId);
 
-  // Group fields by section if provided, otherwise fallback to index grouping
-  const fields = preview.fields || [];
-  const answers = preview.answers || [];
-  
-  const getAnswerForField = (fieldId: string): FormAnswer | undefined => {
-    return answers.find(a => a.field_id === fieldId);
-  };
+  const unanswered = fields.filter((f) => {
+    const value = answerFor(f.field_id)?.answer;
+    return f.is_required && (!value || (Array.isArray(value) && value.length === 0));
+  }).length;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center bg-[#1C2128]/60 backdrop-blur-md px-6 py-4 rounded-xl border border-[#3E4C59]/30">
-        <div>
-          <h3 className="text-lg font-semibold text-white">{preview.form_title || "Questionnaire"}</h3>
-          <p className="text-xs text-[#8B949E] mt-0.5">
-            Auto-detected: <span className="text-cyan-400 capitalize">{preview.provider}</span>
-          </p>
-        </div>
-        
-        <button
-          onClick={onApprove}
-          disabled={!isApprovable || isEditingAny}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-medium py-2 px-5 rounded-lg transition-all shadow-[0_0_15px_rgba(34,197,94,0.2)] disabled:opacity-50 active:scale-[0.98]"
-        >
-          <CheckCircle className="w-4 h-4" />
-          <span>Approve & Fill</span>
-        </button>
-      </div>
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader
+          title={preview.form_title || "Untitled form"}
+          description={`${fields.length} question${fields.length === 1 ? "" : "s"} · ${preview.provider}`}
+          action={
+            <div className="flex items-center gap-2">
+              {unanswered > 0 && <Badge tone="warning">{unanswered} required blank</Badge>}
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Check size={13} />}
+                onClick={onApprove}
+                loading={approving}
+                // Blocked while a card is open: submitting mid-edit would send
+                // the previous answer and silently discard what is on screen.
+                disabled={!isApprovable || editingAny}
+              >
+                Approve and fill
+              </Button>
+            </div>
+          }
+        />
+        {editingAny && (
+          <CardBody className="py-2.5">
+            <p className="text-[12px] text-muted">Finish editing to enable submission.</p>
+          </CardBody>
+        )}
+      </Card>
 
-      {/* Grid of question cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {fields.map(field => (
+      <div className="grid gap-3 md:grid-cols-2">
+        {fields.map((field) => (
           <AnswerCard
             key={field.field_id}
             field={field}
-            answer={getAnswerForField(field.field_id)}
+            answer={answerFor(field.field_id)}
             onEdit={onEditAnswer}
-            isEditingAny={isEditingAny}
-            setIsEditingAny={setIsEditingAny}
+            isEditingAny={editingAny}
+            setIsEditingAny={setEditingAny}
           />
         ))}
       </div>
 
-      {/* Screenshot Preview (Phase 2 wrapper model) */}
       {preview.filled_screenshot_b64 && (
-        <div className="bg-[#1C2128] rounded-xl border border-[#3E4C59]/40 p-5 mt-4">
-          <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-1.5">
-            <ExternalLink className="w-4 h-4 text-cyan-400" />
-            Filled Form Preview
-          </h4>
-          <div className="border border-[#3E4C59]/30 rounded-lg overflow-hidden relative group">
-            <img 
-              src={`data:image/png;base64,${preview.filled_screenshot_b64}`} 
-              alt="Filled form visual"
-              className="w-full h-auto max-h-[400px] object-cover object-top group-hover:scale-[1.01] transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#0D1117] via-transparent to-transparent opacity-60" />
-            <div className="absolute bottom-4 left-4 right-4 text-center">
-              <p className="text-xs text-[#E6EDF3] bg-[#0D1117]/80 backdrop-blur-md p-2 rounded-lg inline-block border border-[#3E4C59]/50">
-                This is a screenshot of the filled page. Verified in browser view accurately.
-              </p>
+        <Card>
+          <CardHeader
+            title="The filled form"
+            description="A screenshot of the page after filling, so you can check it before submitting."
+          />
+          <CardBody>
+            <div className="overflow-hidden rounded-md border border-border">
+              <Image
+                src={`data:image/png;base64,${preview.filled_screenshot_b64}`}
+                alt="The application form, filled in"
+                width={1200}
+                height={800}
+                unoptimized
+                className="h-auto w-full"
+              />
             </div>
-          </div>
-        </div>
+          </CardBody>
+        </Card>
       )}
     </div>
   );
