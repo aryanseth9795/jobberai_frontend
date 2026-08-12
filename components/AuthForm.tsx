@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+
+import { Button, ErrorNote, Field, Input } from "@/components/ui";
 
 interface AuthFormProps {
   title: string;
@@ -18,6 +19,17 @@ interface AuthFormProps {
   passwordAutoComplete: "new-password" | "current-password";
 }
 
+/**
+ * The sign-in and registration form.
+ *
+ * Renders inside the split-panel auth layout, which already carries the
+ * product name — so there is no logo or wordmark here. It used to draw its own
+ * full-screen centred container and its own heading, which meant two competing
+ * titles once the layout arrived.
+ *
+ * Deliberately exactly one button: the layout's footer link is an anchor, and
+ * the tests lean on there being a single button to assert the disabled state.
+ */
 export default function AuthForm({
   title,
   subtitle,
@@ -49,101 +61,56 @@ export default function AuthForm({
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: "var(--bg-primary)" }}
-    >
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-semibold gradient-text mb-2">JobberAI</h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>{subtitle}</p>
-        </div>
+    <>
+      <header className="mb-6">
+        <h1 className="font-display text-[22px] font-semibold tracking-tight">{title}</h1>
+        <p className="mt-1 text-[13px] text-muted">{subtitle}</p>
+      </header>
 
-        <form onSubmit={handleSubmit} className="glass-card p-8">
-          <h2
-            className="text-lg font-medium mb-6"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {title}
-          </h2>
-
-          <label className="block mb-4">
-            <span className="hud-label block mb-1.5">Email</span>
-            <input
+      <form onSubmit={handleSubmit}>
+        <Field label="Email">
+          {(p) => (
+            <Input
+              {...p}
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 rounded outline-none"
-              style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border)",
-                color: "var(--text-primary)",
-                fontSize: 14,
-              }}
             />
-          </label>
+          )}
+        </Field>
 
-          <label className="block mb-2">
-            <span className="hud-label block mb-1.5">Password</span>
-            <input
+        <Field label="Password" hint={passwordHint}>
+          {(p) => (
+            <Input
+              {...p}
               type="password"
               required
               autoComplete={passwordAutoComplete}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 rounded outline-none"
-              style={{
-                background: "var(--bg-secondary)",
-                border: "1px solid var(--border)",
-                color: "var(--text-primary)",
-                fontSize: 14,
-              }}
             />
-          </label>
-
-          {passwordHint && (
-            <p style={{ color: "var(--text-muted)", fontSize: 12 }} className="mb-4">
-              {passwordHint}
-            </p>
           )}
+        </Field>
 
-          {error && (
-            <div
-              className="mb-4 px-3 py-2 rounded"
-              role="alert"
-              style={{
-                background: "var(--danger-bg)",
-                border: "1px solid var(--danger-border)",
-                color: "var(--danger)",
-                fontSize: 13,
-              }}
-            >
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="mb-4">
+            <ErrorNote>{error}</ErrorNote>
+          </div>
+        )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full flex items-center justify-center gap-2 mt-2"
-          >
-            {loading && <Loader2 size={15} className="animate-spin" />}
-            {loading ? "Working…" : submitLabel}
-          </button>
+        <Button type="submit" variant="primary" size="lg" className="w-full" loading={loading}>
+          {submitLabel}
+        </Button>
+      </form>
 
-          <p
-            className="text-center mt-6"
-            style={{ color: "var(--text-secondary)", fontSize: 13 }}
-          >
-            {footer.prompt}{" "}
-            <Link href={footer.href} style={{ color: "var(--accent)" }}>
-              {footer.linkLabel}
-            </Link>
-          </p>
-        </form>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-[12.5px] text-muted">
+        {footer.prompt}{" "}
+        <Link href={footer.href} className="text-accent hover:underline">
+          {footer.linkLabel}
+        </Link>
+      </p>
+    </>
   );
 }

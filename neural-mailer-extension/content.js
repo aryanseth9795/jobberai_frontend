@@ -42,9 +42,10 @@ function scrapeFormQuestions() {
     // For dropdown — options are harder to scrape initially unless clicked, 
     // but some are in data-params. Let's try basic extraction.
     if (fieldType === "dropdown") {
-       const selectEl = block.querySelector('div[role="listbox"]');
-       // In newer forms, dropdown options are deeply nested or only loaded on click.
-       // It's a known limitation without complex DOM simulation. We'll do our best.
+       // In newer forms, dropdown options are deeply nested or only loaded on
+       // click, so the listbox element is not read here — the options come out
+       // of the data-params blob below instead. A known limitation without
+       // complex DOM simulation.
        // Often data-params has them.
        if (questionTextEl && questionTextEl.getAttribute('data-params')) {
            try {
@@ -53,7 +54,7 @@ function scrapeFormQuestions() {
                if (params && params[0] && params[0][4] && params[0][4][0] && params[0][4][0][1]) {
                    options = params[0][4][0][1].map(opt => opt[0]);
                }
-           } catch(e) {}
+           } catch { /* the params blob is undocumented and its shape varies */ }
        }
     }
 

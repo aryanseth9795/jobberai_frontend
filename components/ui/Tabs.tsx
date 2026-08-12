@@ -31,7 +31,18 @@ export function Tabs<T extends string>({
   className?: string;
 }) {
   return (
-    <div role="tablist" className={cn("flex items-center gap-1 border-b border-border", className)}>
+    <div
+      role="tablist"
+      className={cn(
+        "flex items-center gap-1 border-b border-border",
+        // Four tabs with icons are wider than a 375px viewport, and without
+        // this the strip pushes the whole page sideways rather than scrolling
+        // within itself. `no-scrollbar` keeps the bar from appearing under the
+        // tabs on platforms that reserve space for one.
+        "overflow-x-auto no-scrollbar",
+        className
+      )}
+    >
       {items.map((item) => {
         const active = item.id === value;
         return (
@@ -41,7 +52,7 @@ export function Tabs<T extends string>({
             aria-selected={active}
             onClick={() => onChange(item.id)}
             className={cn(
-              "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] font-medium transition-colors",
+              "-mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] font-medium transition-colors",
               active
                 ? "border-accent text-text"
                 : "border-transparent text-muted hover:border-[var(--border-strong)] hover:text-text"

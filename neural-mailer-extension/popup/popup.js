@@ -41,7 +41,7 @@ function showPreview(answers, metadata) {
 
   // Render answer cards
   answerList.innerHTML = "";
-  answers.forEach((ans, i) => {
+  answers.forEach((ans) => {
     const card = document.createElement("div");
     card.className = "answer-card";
 

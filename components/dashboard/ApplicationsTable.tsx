@@ -276,7 +276,14 @@ function HeaderCell({
         "label flex items-center gap-1 transition-colors hover:text-text",
         active && "text-text"
       )}
-      aria-sort={active ? (sort.dir === 1 ? "ascending" : "descending") : "none"}
+      // Not `aria-sort`: this is a grid of divs, so there is no columnheader
+      // for that attribute to sit on, and putting it on the button is invalid.
+      // The label carries the same information instead.
+      aria-label={
+        active
+          ? `${column.label}, sorted ${sort.dir === 1 ? "ascending" : "descending"}. Activate to reverse.`
+          : `${column.label}, not sorted. Activate to sort.`
+      }
     >
       {column.label}
       <Icon size={11} className={active ? "" : "opacity-40"} />

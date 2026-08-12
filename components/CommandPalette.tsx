@@ -84,9 +84,6 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     };
   }, [trimmed]);
 
-  // Derived rather than cleared in an effect: below two characters there are
-  // no application results, whatever the last response happened to contain.
-  const found = searchable ? applications : [];
 
   const go = useCallback(
     (href: string) => {
@@ -113,7 +110,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         })
     );
 
-    const jobs: Result[] = found.map((app) => ({
+    // Derived inside the memo rather than above it: below two characters there
+    // are no application results, whatever the last response happened to hold.
+    const jobs: Result[] = (searchable ? applications : []).map((app) => ({
       id: `job:${app._id}`,
       title: app.company_name || "Unknown company",
       subtitle: [app.role, statusMeta(app.status).label].filter(Boolean).join(" · "),
@@ -124,7 +123,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     }));
 
     return [...pages, ...jobs];
-  }, [query, found, go]);
+  }, [query, searchable, applications, go]);
 
   // Clamped at read time rather than corrected in an effect. The list shrinks
   // as the user types, so the stored cursor can point past the end; clamping
