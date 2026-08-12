@@ -5,6 +5,7 @@ import { Check, KeyRound, Monitor, Moon, Send, Sun, TriangleAlert, User } from "
 
 import { getKeys, updateKeys, type KeyStatus, type KeysResponse } from "@/lib/api";
 import { buildKeysPayload, formFromKeys, isEmptyPayload, type SettingsForm } from "@/lib/settings";
+import { writingNotesError } from "@/lib/writingNotes";
 import { useTheme, type ThemeChoice } from "@/components/ThemeProvider";
 import {
   Badge,
@@ -69,9 +70,20 @@ export default function SettingsPage() {
     setSaved(false);
   };
 
+  // Checked on every render rather than only on submit, so the message clears
+  // itself as soon as enough is deleted.
+  const notesError = writingNotesError(form.writing_notes ?? "");
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!keys) return;
+
+    if (notesError) {
+      // The backend rejects this too. Stopping here just spares the round
+      // trip and puts the message on the field rather than in a toast.
+      setTab("identity");
+      return;
+    }
 
     const payload = buildKeysPayload(keys, form);
     if (isEmptyPayload(payload)) {
@@ -226,20 +238,22 @@ export default function SettingsPage() {
                   {(p) => <Input {...p} value={form.linkedin_url ?? ""} onChange={(e) => set("linkedin_url")(e.target.value)} />}
                 </Field>
 
+                {/* No counter and no `maxLength`. The cap is deliberately not
+                    advertised — see lib/writingNotes.ts — so the only time a
+                    number appears is when the text has actually gone past it,
+                    where staying vague would leave the user guessing how much
+                    to cut. `maxLength` is absent on purpose too: it silently
+                    swallows the tail of a paste, which is the one failure mode
+                    that gives no feedback at all. */}
                 <Field
                   label="Writing notes"
                   hint="Emphasis and ordering preferences, injected verbatim into the prompt."
-                  aside={
-                    <span className="text-[11px] tabular-nums text-faint">
-                      {(form.writing_notes ?? "").length}/2000
-                    </span>
-                  }
+                  error={notesError ?? undefined}
                 >
                   {(p) => (
                     <Textarea
                       {...p}
                       rows={4}
-                      maxLength={2000}
                       value={form.writing_notes ?? ""}
                       onChange={(e) => set("writing_notes")(e.target.value)}
                       placeholder="Lead with the internship, then side projects. Never mention years of experience."
