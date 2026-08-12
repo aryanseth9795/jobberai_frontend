@@ -35,7 +35,15 @@ function matches(query: string, ...fields: string[]): boolean {
   return fields.some((field) => field.toLowerCase().includes(needle));
 }
 
-export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * Mounted only while open, so closing it discards its state.
+ *
+ * The alternative — staying mounted and clearing the query in an effect when
+ * an `open` prop flips — is a render with stale contents followed by a render
+ * that fixes it, on every single open. Unmounting says the same thing to
+ * React and needs no effect to enforce it.
+ */
+export function CommandPalette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -43,31 +51,19 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const [searching, setSearching] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Reset on every open. A palette that reopens showing the last query makes
-  // the first keystroke append to something the user has forgotten typing.
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      setCursor(0);
-      setApplications([]);
-    }
-  }, [open]);
+  const trimmed = query.trim();
+  const searchable = trimmed.length >= 2;
 
   // Applications come from the server, so the query is debounced and every
   // in-flight response is checked against the query that is current when it
   // lands — otherwise a slow reply for "ac" overwrites a fast one for "acme".
   useEffect(() => {
-    if (!open) return;
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setApplications([]);
-      setSearching(false);
-      return;
-    }
+    if (trimmed.length < 2) return;
 
-    setSearching(true);
     let cancelled = false;
     const timer = setTimeout(() => {
+      if (cancelled) return;
+      setSearching(true);
       getJobs({ search: trimmed, limit: 6 })
         .then((response) => {
           if (!cancelled) setApplications(response.applications);
@@ -86,7 +82,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query, open]);
+  }, [trimmed]);
+
+  // Derived rather than cleared in an effect: below two characters there are
+  // no application results, whatever the last response happened to contain.
+  const found = searchable ? applications : [];
 
   const go = useCallback(
     (href: string) => {
@@ -113,7 +113,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         })
     );
 
-    const jobs: Result[] = applications.map((app) => ({
+    const jobs: Result[] = found.map((app) => ({
       id: `job:${app._id}`,
       title: app.company_name || "Unknown company",
       subtitle: [app.role, statusMeta(app.status).label].filter(Boolean).join(" · "),
@@ -124,32 +124,31 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     }));
 
     return [...pages, ...jobs];
-  }, [query, applications, go]);
+  }, [query, found, go]);
 
-  // Clamp rather than reset: the list shrinks as the user types, and jumping
-  // the highlight back to the top on every keystroke fights the arrow keys.
-  useEffect(() => {
-    setCursor((current) => Math.min(current, Math.max(0, results.length - 1)));
-  }, [results.length]);
+  // Clamped at read time rather than corrected in an effect. The list shrinks
+  // as the user types, so the stored cursor can point past the end; clamping
+  // here keeps the highlight on the last row without a render that shows the
+  // out-of-range value first. It stays *stored* unclamped so that deleting a
+  // character puts the highlight back where it was.
+  const cursorAt = Math.min(cursor, Math.max(0, results.length - 1));
 
   useEffect(() => {
     listRef.current
-      ?.querySelector<HTMLElement>(`[data-index="${cursor}"]`)
+      ?.querySelector<HTMLElement>(`[data-index="${cursorAt}"]`)
       ?.scrollIntoView({ block: "nearest" });
-  }, [cursor]);
-
-  if (!open) return null;
+  }, [cursorAt]);
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setCursor((c) => (results.length ? (c + 1) % results.length : 0));
+      setCursor(results.length ? (cursorAt + 1) % results.length : 0);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setCursor((c) => (results.length ? (c - 1 + results.length) % results.length : 0));
+      setCursor(results.length ? (cursorAt - 1 + results.length) % results.length : 0);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      results[cursor]?.run();
+      results[cursorAt]?.run();
     } else if (event.key === "Escape") {
       event.preventDefault();
       onClose();
@@ -184,7 +183,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             aria-label="Search"
             className="h-11 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint"
           />
-          {searching && <Spinner size={13} />}
+          {searchable && searching && <Spinner size={13} />}
         </div>
 
         <div ref={listRef} className="max-h-[52vh] overflow-y-auto py-1.5" role="listbox">
@@ -196,7 +195,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             results.map((result, index) => {
               const showGroup = result.group !== lastGroup;
               lastGroup = result.group;
-              const active = index === cursor;
+              const active = index === cursorAt;
               return (
                 <div key={result.id}>
                   {showGroup && <p className="label px-3.5 pb-1 pt-2">{result.group}</p>}

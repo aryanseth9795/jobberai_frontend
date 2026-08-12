@@ -1,904 +1,607 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Inbox, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+
 import {
-  getJobs,
-  getJobStats,
-  updateJobStatus,
   deleteJob,
-  JobApplication,
-  DashboardStats,
-  FormSession,
+  getAnalytics,
   getFormHistory,
+  getJobs,
+  updateJobStatus,
+  type Analytics,
+  type FormSession,
+  type JobApplication,
 } from "@/lib/api";
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
-function formatDate(iso?: string) {
-  if (!iso) return "—";
-  
-  // Fastapi/Motor often serializes naive datetimes without a timezone. 
-  // We append 'Z' to force JavaScript to treat it as UTC so it converts to local IST correctly.
-  const dateStr = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z';
-  
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    applied:  { bg: "#e8f0fe", color: "#1a73e8", label: "Applied" },
-    sent:     { bg: "#e8f0fe", color: "#1a73e8", label: "Sent" },
-    failed:   { bg: "#fce8e6", color: "#c5221f", label: "Failed" },
-    rejected: { bg: "#fce8e6", color: "#c5221f", label: "Rejected" },
-    interview:{ bg: "#e6f4ea", color: "#1e8e3e", label: "Interview 🎉" },
-    offer:    { bg: "#e6f4ea", color: "#1e8e3e", label: "Offer 🎉" },
-    ghosted:  { bg: "#f1f3f4", color: "#9e9e9e", label: "Ghosted" },
-  };
-  const c = map[status.toLowerCase()] ?? { bg: "#f1f3f4", color: "#5f6368", label: status };
-  return (
-    <span
-      style={{
-        fontSize: 11,
-        fontWeight: 600,
-        padding: "3px 10px",
-        borderRadius: 12,
-        background: c.bg,
-        color: c.color,
-        whiteSpace: "nowrap",
-        fontFamily: '"Google Sans", Roboto, sans-serif',
-        textTransform: "capitalize",
-      }}
-    >
-      {c.label}
-    </span>
-  );
-}
-
-// ─── stat card ───────────────────────────────────────────────────────────────
-
-function StatCard({
-  value,
-  label,
-  icon,
-  accent,
-}: {
-  value: number | string;
-  label: string;
-  icon: string;
-  accent?: string;
-}) {
-  return (
-    <div
-      className="hud-card"
-      style={{
-        padding: "18px 20px",
-        display: "flex",
-        alignItems: "center",
-        gap: 14,
-        flex: 1,
-        minWidth: 140,
-      }}
-    >
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 10,
-          background: accent ? `${accent}18` : "#e8f0fe",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 20,
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </div>
-      <div>
-        <p
-          style={{
-            fontSize: 28,
-            fontWeight: 700,
-            color: accent || "#202124",
-            fontFamily: '"Google Sans", Roboto, sans-serif',
-            lineHeight: 1,
-            margin: 0,
-          }}
-        >
-          {value}
-        </p>
-        <p style={{ fontSize: 12, color: "#5f6368", margin: "4px 0 0", fontFamily: "Roboto, sans-serif" }}>{label}</p>
-      </div>
-    </div>
-  );
-}
-
-// ─── detail modal ─────────────────────────────────────────────────────────────
-
-const STATUS_OPTIONS = ["applied", "interview", "offer", "rejected", "ghosted"];
-
-function DetailModal({
-  app,
-  onClose,
-  onStatusChange,
-}: {
-  app: JobApplication;
-  onClose: () => void;
-  onStatusChange: (id: string, status: string) => void;
-}) {
-  const [saving, setSaving] = useState(false);
-  const [localStatus, setLocalStatus] = useState(app.status);
-
-  const handleStatusChange = async (newStatus: string) => {
-    setSaving(true);
-    try {
-      await updateJobStatus(app._id, newStatus);
-      setLocalStatus(newStatus);
-      onStatusChange(app._id, newStatus);
-    } catch {
-      // silently ignore
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.45)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="w-full max-w-2xl fade-in"
-        style={{
-          background: "#fff",
-          borderRadius: 8,
-          boxShadow: "0 8px 32px rgba(60,64,67,0.3)",
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {/* Modal header */}
-        <div
-          style={{
-            padding: "16px 20px",
-            borderBottom: "1px solid #e0e0e0",
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <div>
-            <h2
-              style={{
-                fontSize: 17,
-                fontWeight: 600,
-                color: "#202124",
-                margin: 0,
-                fontFamily: '"Google Sans", Roboto, sans-serif',
-              }}
-            >
-              {app.role || "Unknown Role"}
-            </h2>
-            <p style={{ fontSize: 14, color: "#5f6368", margin: "3px 0 0" }}>
-              {app.company_name} · {formatDate(app.applied_at)}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 18,
-              cursor: "pointer",
-              color: "#5f6368",
-              padding: 2,
-              flexShrink: 0,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Modal body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
-
-          {/* Meta grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-            {[
-              { label: "Company", value: app.company_name },
-              { label: "Role", value: app.role },
-              { label: "HR Email", value: app.hr_email },
-              { label: "Applied On", value: formatDate(app.applied_at) },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                style={{
-                  padding: "10px 14px",
-                  background: "#f8f9fa",
-                  borderRadius: 6,
-                  border: "1px solid #e0e0e0",
-                }}
-              >
-                <p style={{ fontSize: 10, color: "#9e9e9e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>
-                  {label}
-                </p>
-                <p style={{ fontSize: 13, color: "#202124", fontWeight: 500, wordBreak: "break-all" }}>
-                  {value || "—"}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Status changer */}
-          <div style={{ marginBottom: 20 }}>
-            <p style={{ fontSize: 11, color: "#9e9e9e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
-              Update Status
-            </p>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {STATUS_OPTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleStatusChange(s)}
-                  disabled={saving}
-                  style={{
-                    fontSize: 12,
-                    padding: "5px 14px",
-                    borderRadius: 12,
-                    cursor: "pointer",
-                    fontFamily: '"Google Sans", Roboto, sans-serif',
-                    fontWeight: localStatus === s ? 600 : 400,
-                    background: localStatus === s ? "#1a73e8" : "#f1f3f4",
-                    color: localStatus === s ? "#fff" : "#5f6368",
-                    border: "none",
-                    transition: "all 0.15s",
-                    textTransform: "capitalize",
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Cover email */}
-          {app.cover_email_subject && (
-            <div style={{ border: "1px solid #e0e0e0", borderRadius: 6, overflow: "hidden" }}>
-              <div
-                style={{
-                  padding: "10px 14px",
-                  background: "#f8f9fa",
-                  borderBottom: "1px solid #e0e0e0",
-                }}
-              >
-                <p style={{ fontSize: 10, color: "#9e9e9e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 }}>
-                  Cover Email Sent
-                </p>
-                <p style={{ fontSize: 14, fontWeight: 500, color: "#202124" }}>
-                  {app.cover_email_subject}
-                </p>
-              </div>
-              {app.cover_email_body && (
-                <div style={{ padding: "14px", maxHeight: 240, overflowY: "auto" }}>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: "#202124",
-                      lineHeight: 1.75,
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {app.cover_email_body}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Modal footer */}
-        <div
-          style={{
-            padding: "12px 20px",
-            borderTop: "1px solid #e0e0e0",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <button
-            onClick={onClose}
-            className="btn-ghost"
-            style={{ fontSize: 13, padding: "7px 20px" }}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── form detail modal ────────────────────────────────────────────────────────
-
-function FormDetailModal({
-  session,
-  onClose,
-}: {
-  session: FormSession;
-  onClose: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.45)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        className="w-full max-w-2xl fade-in"
-        style={{
-          background: "#fff",
-          borderRadius: 8,
-          boxShadow: "0 8px 32px rgba(60,64,67,0.3)",
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #e0e0e0", display: "flex", justifyContent: "space-between" }}>
-          <div>
-            <h2 style={{ fontSize: 17, fontWeight: 600, color: "#202124", margin: 0 }}>
-              {session.role || "Unknown Role"}
-            </h2>
-            <p style={{ fontSize: 14, color: "#5f6368", margin: "3px 0 0" }}>
-              {session.company} · {formatDate(session.filled_at)}
-            </p>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#5f6368" }}>✕</button>
-        </div>
-
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
-          <div style={{ marginBottom: 20 }}>
-            {session.form_url && (
-              <a href={session.form_url} target="_blank" style={{ fontSize: 13, color: "#1a73e8", textDecoration: "none" }}>🔗 View Original Form</a>
-            )}
-          </div>
-          
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#202124", marginBottom: 12 }}>Extracted Questions & Answers</h3>
-          
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {session.answers?.map((ans, i) => {
-              const questionText = session.questions?.find(q => q.index === ans.index)?.question || ans.question;
-              return (
-                <div key={i} style={{ background: "#f8f9fa", border: "1px solid #e0e0e0", borderRadius: 8, padding: 14 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#202124", marginBottom: 6 }}>{questionText}</p>
-                  <p style={{ fontSize: 13, color: "#5f6368", whiteSpace: "pre-wrap" }}>{ans.answer}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── main dashboard page ──────────────────────────────────────────────────────
+import { compact, longDate, percent } from "@/lib/format";
+import { statusMeta } from "@/lib/status";
+import {
+  AreaChart,
+  BarChart,
+  bucket,
+  FunnelChart,
+  SeriesTable,
+  StatTile,
+  type AreaPoint,
+  type AreaSeries,
+} from "@/components/charts";
+import { ApplicationDialog, FormSessionDialog } from "@/components/dashboard/ApplicationDialog";
+import { ApplicationsTable, type SortState } from "@/components/dashboard/ApplicationsTable";
+import {
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  ConfirmDialog,
+  EmptyState,
+  ErrorNote,
+  SegmentedControl,
+  Skeleton,
+  SkeletonTable,
+  StatusBadge,
+  Tabs,
+  useToast,
+} from "@/components/ui";
 
 const PAGE_SIZE = 15;
 
+const RANGES = [
+  { value: 7, label: "7d" },
+  { value: 30, label: "30d" },
+  { value: 90, label: "90d" },
+  { value: 0, label: "All" },
+];
+
+/** The two series on the activity chart.
+ *
+ *  This is an emphasis pair, not a categorical one: `responded` is the story
+ *  and `applied` is the volume it is read against, which is why only one of
+ *  them is allowed a saturated colour. */
+const SERIES: AreaSeries[] = [
+  { key: "applied", label: "Sent", color: "var(--chart-1)", fill: true },
+  { key: "responded", label: "Replied", color: "var(--signal)" },
+];
+
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<"emails" | "forms">("emails");
+  const toast = useToast();
+
+  const [range, setRange] = useState(30);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+
+  const [tab, setTab] = useState<"emails" | "forms">("emails");
   const [apps, setApps] = useState<JobApplication[]>([]);
-  const [formSessions, setFormSessions] = useState<FormSession[]>([]);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [forms, setForms] = useState<FormSession[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<SortState>({ field: "applied_at", dir: -1 });
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const [selected, setSelected] = useState<JobApplication | null>(null);
-  const [selectedForm, setSelectedForm] = useState<FormSession | null>(null);
-  
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [searchInput, setSearchInput] = useState("");
+  const [showTable, setShowTable] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const [openApp, setOpenApp] = useState<JobApplication | null>(null);
+  const [openForm, setOpenForm] = useState<FormSession | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<JobApplication | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // ── data ──
+
+  const loadAnalytics = useCallback(async () => {
+    setAnalyticsError(null);
+    try {
+      setAnalytics(await getAnalytics(range));
+    } catch (e) {
+      setAnalyticsError(e instanceof Error ? e.message : "Could not load analytics.");
+    }
+  }, [range]);
+
+  const loadRows = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      if (activeTab === "emails") {
-        const [jobRes, statsRes] = await Promise.all([
-          getJobs({ skip: page * PAGE_SIZE, limit: PAGE_SIZE, status: statusFilter || undefined, search: search || undefined }),
-          getJobStats(),
-        ]);
-        setApps(jobRes.applications);
-        setTotal(jobRes.total);
-        setStats(statsRes);
+      if (tab === "emails") {
+        const res = await getJobs({
+          skip: page * PAGE_SIZE,
+          limit: PAGE_SIZE,
+          status: statusFilter || undefined,
+          search: search || undefined,
+          sortBy: sort.field,
+          sortDir: sort.dir,
+        });
+        setApps(res.applications);
+        setTotal(res.total);
       } else {
-        const formRes = await getFormHistory({ skip: page * PAGE_SIZE, limit: PAGE_SIZE });
-        setFormSessions(formRes.sessions);
-        setTotal(formRes.total);
+        const res = await getFormHistory({ skip: page * PAGE_SIZE, limit: PAGE_SIZE });
+        setForms(res.sessions);
+        setTotal(res.total);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load data");
+      setError(e instanceof Error ? e.message : "Could not load records.");
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, activeTab]);
+  }, [tab, page, search, statusFilter, sort]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadAnalytics();
+  }, [loadAnalytics]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearch(searchInput);
-    setPage(0);
+  useEffect(() => {
+    loadRows();
+  }, [loadRows]);
+
+  const refresh = () => {
+    loadAnalytics();
+    loadRows();
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Delete this application record?")) return;
-    setDeleting(id);
+  // ── derived ──
+
+  const points: AreaPoint[] = useMemo(
+    () =>
+      (analytics?.series ?? []).map((p) => ({
+        id: p.date,
+        label: longDate(p.date).replace(/ \d{4}$/, ""),
+        values: { applied: p.applied, responded: p.responded },
+      })),
+    [analytics]
+  );
+
+  /**
+   * Movement across the window, measured by splitting it in half.
+   *
+   * The alternative — a second request for the preceding window — is a truer
+   * "vs previous 30 days", and it is one more round trip on every range
+   * change for a number nobody reads that precisely. The label says exactly
+   * what was compared so the figure cannot be misread.
+   */
+  const split = useMemo(() => {
+    const series = analytics?.series ?? [];
+    if (series.length < 4) return null;
+    const mid = Math.floor(series.length / 2);
+    const sum = (from: number, to: number, key: "applied" | "responded") =>
+      series.slice(from, to).reduce((acc, p) => acc + p[key], 0);
+    return {
+      halfDays: series.length - mid,
+      applied: { current: sum(mid, series.length, "applied"), previous: sum(0, mid, "applied") },
+      responded: {
+        current: sum(mid, series.length, "responded"),
+        previous: sum(0, mid, "responded"),
+      },
+    };
+  }, [analytics]);
+
+  const periodLabel = split ? `vs prior ${split.halfDays}d` : undefined;
+
+  const statusMix = useMemo(() => {
+    const by = analytics?.by_status ?? {};
+    return Object.entries(by)
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([status, count]) => {
+        const meta = statusMeta(status);
+        return {
+          label: meta.label,
+          value: count,
+          // Register, not magnitude. Colouring these by size would re-encode
+          // the bar length and say nothing new.
+          color:
+            meta.register === "live"
+              ? "var(--signal)"
+              : meta.register === "closed"
+                ? "var(--closed)"
+                : meta.register === "failed"
+                  ? "var(--warning)"
+                  : "var(--chart-1)",
+        };
+      });
+  }, [analytics]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rows = tab === "emails" ? apps.length : forms.length;
+  const filtered = Boolean(search || statusFilter);
+
+  // ── actions ──
+
+  const handleStatus = (id: string, status: string) => {
+    setApps((prev) => prev.map((a) => (a._id === id ? { ...a, status } : a)));
+    setOpenApp((prev) => (prev && prev._id === id ? { ...prev, status } : prev));
+    loadAnalytics();
+  };
+
+  const handleBulkStatus = async (ids: string[], status: string) => {
+    const before = apps;
+    setApps((prev) => prev.map((a) => (ids.includes(a._id) ? { ...a, status } : a)));
+
+    const results = await Promise.allSettled(ids.map((id) => updateJobStatus(id, status)));
+    const failed = results.filter((r) => r.status === "rejected").length;
+
+    if (failed === 0) {
+      toast.success(`Updated ${ids.length} ${ids.length === 1 ? "application" : "applications"}.`);
+      loadAnalytics();
+      return;
+    }
+
+    // A partial failure is the dangerous case: some rows moved and some did
+    // not, and the optimistic view now agrees with neither. Roll back to what
+    // was on screen and reload rather than guessing which half succeeded.
+    setApps(before);
+    toast.error(`${failed} of ${ids.length} could not be updated.`);
+    loadRows();
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
     try {
-      await deleteJob(id);
-      setApps((prev) => prev.filter((a) => a._id !== id));
-      setTotal((t) => t - 1);
-      loadData(); // refresh stats
-    } catch {
-      // ignore
+      await deleteJob(pendingDelete._id);
+      setApps((prev) => prev.filter((a) => a._id !== pendingDelete._id));
+      setTotal((t) => Math.max(0, t - 1));
+      setPendingDelete(null);
+      toast.success("Application deleted.");
+      loadAnalytics();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not delete the application.");
     } finally {
-      setDeleting(null);
+      setDeleting(false);
     }
   };
 
-  const handleStatusChange = (id: string, newStatus: string) => {
-    setApps((prev) =>
-      prev.map((a) => (a._id === id ? { ...a, status: newStatus } : a))
-    );
-    loadData(); // refresh stats
-  };
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  // ─── nav header (same as main pages) ────────────────────────────────────
-  const navHeader = (
-    <header
-      style={{
-        background: "#ffffff",
-        borderBottom: "1px solid #e0e0e0",
-        position: "sticky",
-        top: 0,
-        zIndex: 40,
-      }}
-    >
-      <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: "#1a73e8",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-            }}
-          >
-            ✉
-          </div>
-          <div>
-            <p style={{ fontWeight: 600, fontSize: 16, color: "#202124", fontFamily: '"Google Sans", Roboto, sans-serif', lineHeight: 1.2 }}>
-              Job Agent
-            </p>
-            <p style={{ fontSize: 11, color: "#5f6368" }}>AI cover email automation</p>
-          </div>
-        </div>
-        <nav className="flex gap-2">
-          <Link href="/" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Apply</Link>
-          <Link href="/reapply" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Re-Apply</Link>
-          <Link href="/dashboard" className="btn-primary" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Dashboard</Link>
-          <Link href="/profile" className="btn-ghost" style={{ textDecoration: "none", padding: "7px 16px", fontSize: 13 }}>Profile</Link>
-        </nav>
-      </div>
-    </header>
-  );
+  const empty = analytics !== null && analytics.total === 0 && !filtered;
 
   return (
-    <main className="min-h-screen" style={{ background: "#f6f8fc" }}>
-      {navHeader}
-
-      <div className="max-w-6xl mx-auto px-6 py-8">
-
-        {/* page title */}
-        <div style={{ marginBottom: 28 }}>
-          <h1
-            style={{
-              fontSize: 28,
-              fontWeight: 700,
-              color: "#202124",
-              fontFamily: '"Google Sans", Roboto, sans-serif',
-              margin: 0,
-            }}
-          >
-            Applications Dashboard
-          </h1>
-          <p style={{ fontSize: 14, color: "#5f6368", marginTop: 4 }}>
-            Track all your job applications, update statuses, and review emails sent.
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-[22px] font-semibold">Dashboard</h1>
+          <p className="mt-0.5 text-[13px] text-muted">
+            Everything you have sent, and what came back.
           </p>
         </div>
 
-        {/* ── Stats row ── */}
-        {stats && (
-          <div className="flex flex-wrap gap-4 mb-8">
-            <StatCard value={stats.total}      label="Total sent"     icon="✉"  accent="#1a73e8" />
-            <StatCard value={stats.today}      label="Today"          icon="📅" accent="#9334e6" />
-            <StatCard value={stats.this_week}  label="This week"      icon="📈" accent="#00879f" />
-            <StatCard value={stats.sent}       label="Applied"        icon="✅" accent="#1e8e3e" />
-            <StatCard value={stats.failed}     label="Failed sends"   icon="❌" accent="#ea4335" />
-            <StatCard value={stats.rejected}   label="Rejected"       icon="⛔" accent="#b06000" />
-          </div>
-        )}
-
-        {/* ── Tabs Toggle ── */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-          <button
-            onClick={() => { setActiveTab("emails"); setPage(0); }}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "8px",
-              border: "none",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              background: activeTab === "emails" ? "#1a73e8" : "#fff",
-              color: activeTab === "emails" ? "#fff" : "#5f6368",
-              boxShadow: activeTab === "emails" ? "0 2px 6px rgba(26,115,232,0.3)" : "0 1px 3px rgba(0,0,0,0.1)",
-              transition: "all 0.2s"
-            }}
-          >
-            ✉ Email Campaigns
-          </button>
-          <button
-            onClick={() => { setActiveTab("forms"); setPage(0); }}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "8px",
-              border: "none",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              background: activeTab === "forms" ? "#0891b2" : "#fff",
-              color: activeTab === "forms" ? "#fff" : "#5f6368",
-              boxShadow: activeTab === "forms" ? "0 2px 6px rgba(8,145,178,0.3)" : "0 1px 3px rgba(0,0,0,0.1)",
-              transition: "all 0.2s"
-            }}
-          >
-            ⚡ Form Fills (Extension)
-          </button>
+        {/* One filter row, scoping everything below it. */}
+        <div className="flex items-center gap-2">
+          <SegmentedControl
+            label="Time range"
+            options={RANGES}
+            value={range}
+            onChange={(v) => setRange(v)}
+          />
+          <Button size="sm" variant="ghost" icon={<RefreshCw size={13} />} onClick={refresh}>
+            Refresh
+          </Button>
         </div>
+      </header>
 
-        {/* ── Filters + search (Emails only) ── */}
-        {activeTab === "emails" && (
-          <div
-            className="hud-card"
-            style={{ padding: "14px 18px", marginBottom: 16, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}
-          >
-            {/* Search */}
-            <form onSubmit={handleSearch} className="flex items-center gap-2" style={{ flex: 1, minWidth: 200 }}>
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search company, role, or email..."
-              style={{
-                flex: 1,
-                padding: "7px 12px",
-                border: "1px solid #dadce0",
-                borderRadius: 4,
-                fontSize: 13,
-                color: "#202124",
-                fontFamily: "Roboto, sans-serif",
-                outline: "none",
-              }}
-            />
-            <button type="submit" className="btn-primary" style={{ padding: "7px 16px", fontSize: 13 }}>
-              Search
-            </button>
-            {search && (
-              <button
-                type="button"
-                className="btn-ghost"
-                style={{ padding: "7px 12px", fontSize: 13 }}
-                onClick={() => { setSearch(""); setSearchInput(""); setPage(0); }}
-              >
-                Clear
-              </button>
-            )}
-          </form>
-
-          {/* Status filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
-            style={{
-              padding: "7px 12px",
-              border: "1px solid #dadce0",
-              borderRadius: 4,
-              fontSize: 13,
-              color: "#202124",
-              background: "#fff",
-              cursor: "pointer",
-              outline: "none",
-            }}
-          >
-            <option value="">All statuses</option>
-            <option value="applied">Applied</option>
-            <option value="interview">Interview</option>
-            <option value="offer">Offer</option>
-            <option value="rejected">Rejected</option>
-            <option value="ghosted">Ghosted</option>
-            <option value="failed">Failed</option>
-          </select>
-
-          <button onClick={loadData} className="btn-ghost" style={{ padding: "7px 12px", fontSize: 13 }}>
-            ↻ Refresh
-          </button>
+      {analyticsError && (
+        <div className="mb-4">
+          <ErrorNote action={<Button size="sm" variant="ghost" onClick={loadAnalytics}>Retry</Button>}>
+            {analyticsError}
+          </ErrorNote>
         </div>
-        )}
+      )}
 
-        {/* ── Table/List Area ── */}
-        {error && (
-          <div
-            className="fade-in"
-            style={{
-              background: "#fce8e6",
-              border: "1px solid #f5c6c5",
-              borderRadius: 8,
-              padding: 14,
-              marginBottom: 20,
-              fontSize: 13,
-              color: "#c5221f",
-            }}
-          >
-            ⚠ {error}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="hud-card" style={{ padding: 40, textAlign: "center" }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                border: "3px solid #e8f0fe",
-                borderTopColor: activeTab === "forms" ? "#0891b2" : "#1a73e8",
-                borderRadius: "50%",
-                animation: "spin 0.8s linear infinite",
-                margin: "0 auto 12px",
-              }}
-            />
-            <p style={{ fontSize: 14, color: "#5f6368" }}>Loading records...</p>
-          </div>
-        ) : (activeTab === "emails" ? apps.length === 0 : formSessions.length === 0) ? (
-          <div
-            className="hud-card"
-            style={{ padding: 48, textAlign: "center" }}
-          >
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
-            <p style={{ fontSize: 16, fontWeight: 500, color: "#202124", fontFamily: '"Google Sans", Roboto, sans-serif', marginBottom: 6 }}>
-              {activeTab === "emails" 
-                ? (search || statusFilter ? "No applications match your filters" : "No email applications yet")
-                : "No form filling sessions yet"}
-            </p>
-            <p style={{ fontSize: 13, color: "#5f6368" }}>
-              {activeTab === "emails"
-                ? (search || statusFilter ? "Try clearing filters" : "Head to the Apply tab to send your first cover email.")
-                : "Use the Chrome Extension on a Google Form to start logging data here."}
-            </p>
-          </div>
+      {/* ── KPI row ── */}
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {analytics === null ? (
+          Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-lg" />)
         ) : (
           <>
-            {/* Table */}
-            <div
-              className="hud-card"
-              style={{ overflow: "hidden", padding: 0 }}
-            >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: activeTab === "emails" 
-                    ? "2fr 1.5fr 2fr 1fr 100px 36px"
-                    : "2fr 2fr 1.5fr 100px",
-                  gap: 0,
-                  padding: "10px 18px",
-                  background: "#f8f9fa",
-                  borderBottom: "1px solid #e0e0e0",
-                }}
-              >
-                {(activeTab === "emails" 
-                  ? ["Company", "Role", "HR Email", "Date", "Status", ""] 
-                  : ["Company", "Role", "Filled On", "Status"]
-                ).map((h, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "#5f6368",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    {h}
-                  </span>
-                ))}
-              </div>
-
-              {activeTab === "emails" && apps.map((app, i) => (
-                <div
-                  key={app._id}
-                  onClick={() => setSelected(app)}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "2fr 1.5fr 2fr 1fr 100px 36px",
-                    gap: 0,
-                    padding: "12px 18px",
-                    borderBottom: i < apps.length - 1 ? "1px solid #f1f3f4" : "none",
-                    cursor: "pointer",
-                    transition: "background 0.1s",
-                    alignItems: "center",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8f9fa")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-                >
-                  <span style={{ fontSize: 14, fontWeight: 500, color: "#202124", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
-                    {app.company_name || "—"}
-                  </span>
-                  <span style={{ fontSize: 13, color: "#5f6368", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
-                    {app.role || "—"}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#1a73e8", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
-                    {app.hr_email || "—"}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#9e9e9e", whiteSpace: "nowrap" }}>
-                    {formatDate(app.applied_at)}
-                  </span>
-                  <StatusBadge status={app.status} />
-                  <button
-                    onClick={(e) => handleDelete(app._id, e)}
-                    disabled={deleting === app._id}
-                    title="Delete application"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: 15,
-                      color: "#9e9e9e",
-                      padding: 4,
-                      borderRadius: 4,
-                      transition: "color 0.15s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#ea4335")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#9e9e9e")}
-                  >
-                    {deleting === app._id ? "…" : "🗑"}
-                  </button>
-                </div>
-              ))}
-
-              {activeTab === "forms" && formSessions.map((session, i) => (
-                <div
-                  key={session.preview_id}
-                  onClick={() => setSelectedForm(session)}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "2fr 2fr 1.5fr 100px",
-                    gap: 0,
-                    padding: "12px 18px",
-                    borderBottom: i < formSessions.length - 1 ? "1px solid #f1f3f4" : "none",
-                    cursor: "pointer",
-                    transition: "background 0.1s",
-                    alignItems: "center",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8f9fa")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "")}
-                >
-                  <span style={{ fontSize: 14, fontWeight: 500, color: "#202124", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
-                    {session.company || "Unknown"}
-                  </span>
-                  <span style={{ fontSize: 13, color: "#5f6368", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 8 }}>
-                    {session.role || session.form_title || "Unknown"}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#9e9e9e", whiteSpace: "nowrap" }}>
-                    {formatDate(session.filled_at)}
-                  </span>
-                  <StatusBadge status={session.status} />
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            <div
-              style={{
-                marginTop: 16,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 13, color: "#5f6368" }}>
-                Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total} applications
-              </span>
-              <div style={{ display: "flex", gap: 6 }}>
-                <button
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  className="btn-ghost"
-                  style={{ padding: "6px 14px", fontSize: 13, opacity: page === 0 ? 0.4 : 1 }}
-                >
-                  ← Prev
-                </button>
-                <span
-                  style={{
-                    padding: "6px 14px",
-                    fontSize: 13,
-                    color: "#202124",
-                    background: "#e8f0fe",
-                    borderRadius: 4,
-                    fontWeight: 500,
-                  }}
-                >
-                  {page + 1} / {totalPages}
-                </span>
-                <button
-                  disabled={page >= totalPages - 1}
-                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                  className="btn-ghost"
-                  style={{ padding: "6px 14px", fontSize: 13, opacity: page >= totalPages - 1 ? 0.4 : 1 }}
-                >
-                  Next →
-                </button>
-              </div>
-            </div>
+            <StatTile
+              label="Applications sent"
+              value={compact(analytics.total)}
+              current={split?.applied.current}
+              previous={split?.applied.previous}
+              periodLabel={periodLabel}
+              trend={bucket(analytics.series.map((p) => p.applied), 20)}
+              // More applications is not self-evidently better, so the delta
+              // stays neutral rather than colouring volume as success.
+              upIsGood={false}
+            />
+            <StatTile
+              label="Replies"
+              value={compact(analytics.responded)}
+              current={split?.responded.current}
+              previous={split?.responded.previous}
+              periodLabel={periodLabel}
+              trend={bucket(analytics.series.map((p) => p.responded), 20)}
+              accent
+            />
+            <StatTile label="Response rate" value={percent(analytics.response_rate)} />
+            <StatTile label="Forms filled" value={compact(analytics.forms)} />
           </>
         )}
       </div>
 
-      {/* Detail modals */}
-      {selected && (
-        <DetailModal
-          app={selected}
-          onClose={() => setSelected(null)}
-          onStatusChange={(id, status) => {
-            handleStatusChange(id, status);
-            setSelected((s) => (s && s._id === id ? { ...s, status } : s));
+      {empty ? (
+        <Card className="mb-4">
+          <EmptyState
+            icon={<Inbox size={18} />}
+            title="No applications yet"
+            body="Once you send your first cover email, this is where the charts, the funnel and the reply rate appear."
+            action={
+              <Button variant="primary" onClick={() => (window.location.href = "/")}>
+                Send your first application
+              </Button>
+            }
+          />
+        </Card>
+      ) : (
+        <>
+          {/* ── Activity ── */}
+          <Card className="mb-4">
+            <CardHeader
+              title="Activity"
+              description={range === 0 ? "All time" : `Last ${range} days`}
+              action={
+                <SegmentedControl
+                  label="View"
+                  options={[
+                    { value: "chart", label: "Chart" },
+                    { value: "table", label: "Table" },
+                  ]}
+                  value={showTable ? "table" : "chart"}
+                  onChange={(v) => setShowTable(v === "table")}
+                />
+              }
+            />
+            <CardBody>
+              <div className="mb-3 flex items-center gap-4">
+                {SERIES.map((s) => (
+                  <span key={s.key} className="flex items-center gap-1.5 text-[12px] text-muted">
+                    <span className="h-0.5 w-3.5 rounded-full" style={{ background: s.color }} />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
+
+              {analytics === null ? (
+                <Skeleton className="h-[240px] rounded-md" />
+              ) : showTable ? (
+                <SeriesTable points={points} series={SERIES} />
+              ) : (
+                <AreaChart points={points} series={SERIES} />
+              )}
+            </CardBody>
+          </Card>
+
+          {/* ── Funnel · companies · status mix ── */}
+          <div className="mb-5 grid gap-4 lg:grid-cols-3">
+            <Card>
+              <CardHeader title="Funnel" description="Where applications stop" />
+              <CardBody>
+                {analytics === null ? (
+                  <Skeleton className="h-32 rounded-md" />
+                ) : (
+                  <FunnelChart data={analytics.funnel} />
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader title="Top companies" description="Most applied to" />
+              <CardBody>
+                {analytics === null ? (
+                  <Skeleton className="h-32 rounded-md" />
+                ) : (
+                  <BarChart
+                    data={analytics.top_companies.map((c) => ({ label: c.company, value: c.count }))}
+                    emptyLabel="No applications in this range."
+                  />
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader title="Status mix" description="Colour follows what it means" />
+              <CardBody>
+                {analytics === null ? (
+                  <Skeleton className="h-32 rounded-md" />
+                ) : (
+                  <BarChart data={statusMix} emptyLabel="No applications in this range." />
+                )}
+              </CardBody>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* ── Records ── */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <Tabs
+          items={[
+            { id: "emails", label: "Applications" },
+            { id: "forms", label: "Form fills" },
+          ]}
+          value={tab}
+          onChange={(id) => {
+            setTab(id);
+            setPage(0);
           }}
         />
+
+        {tab === "emails" && (
+          <div className="flex flex-wrap items-center gap-2">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setSearch(searchInput);
+                setPage(0);
+              }}
+              className="relative"
+            >
+              <Search
+                size={13}
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint"
+              />
+              <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search company, role, email"
+                aria-label="Search applications"
+                className="h-8 w-56 rounded-md border border-border bg-surface pl-7 pr-2 text-[12.5px] outline-none focus:border-[var(--accent)]"
+              />
+            </form>
+
+            <div className="relative">
+              <SlidersHorizontal
+                size={13}
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-faint"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(0);
+                }}
+                aria-label="Filter by status"
+                className="h-8 rounded-md border border-border bg-surface pl-7 pr-2 text-[12.5px] outline-none"
+              >
+                <option value="">All statuses</option>
+                {["applied", "interview", "offer", "rejected", "ghosted", "failed"].map((s) => (
+                  <option key={s} value={s}>
+                    {statusMeta(s).label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {filtered && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSearch("");
+                  setSearchInput("");
+                  setStatusFilter("");
+                  setPage(0);
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="mb-3">
+          <ErrorNote action={<Button size="sm" variant="ghost" onClick={loadRows}>Retry</Button>}>
+            {error}
+          </ErrorNote>
+        </div>
       )}
-      
-      {selectedForm && (
-        <FormDetailModal
-          session={selectedForm}
-          onClose={() => setSelectedForm(null)}
+
+      {loading && rows === 0 ? (
+        <Card>
+          <SkeletonTable rows={6} columns="2fr 1.5fr 2fr 1fr 110px" />
+        </Card>
+      ) : rows === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<Inbox size={18} />}
+            title={
+              tab === "emails"
+                ? filtered
+                  ? "Nothing matches those filters"
+                  : "No applications yet"
+                : "No form fills yet"
+            }
+            body={
+              tab === "emails"
+                ? filtered
+                  ? "Try a different search or clear the status filter."
+                  : "Head to Apply to send your first cover email."
+                : "Use the Chrome extension on a Google Form and sessions will appear here."
+            }
+          />
+        </Card>
+      ) : tab === "emails" ? (
+        <ApplicationsTable
+          applications={apps}
+          loading={loading}
+          sort={sort}
+          onSortChange={(next) => {
+            setSort(next);
+            setPage(0);
+          }}
+          onOpen={setOpenApp}
+          onDelete={setPendingDelete}
+          onBulkStatus={handleBulkStatus}
         />
+      ) : (
+        <Card>
+          <div className="divide-y divide-[var(--border)]">
+            {forms.map((session) => (
+              <button
+                key={session.preview_id}
+                onClick={() => setOpenForm(session)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-surface-2"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[13px] font-medium">
+                    {session.company || "Unknown company"}
+                  </span>
+                  <span className="block truncate text-[12px] text-muted">
+                    {session.role || session.form_title || "Untitled form"} ·{" "}
+                    {session.filled_at ? longDate(session.filled_at.slice(0, 10)) : "—"}
+                  </span>
+                </span>
+                <StatusBadge status={session.status} />
+              </button>
+            ))}
+          </div>
+        </Card>
       )}
-    </main>
+
+      {rows > 0 && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[12px] text-muted tabular-nums">
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <Button size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+              Previous
+            </Button>
+            <span className="px-2 text-[12px] text-muted tabular-nums">
+              {page + 1} / {totalPages}
+            </span>
+            <Button
+              size="sm"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ApplicationDialog
+        application={openApp}
+        onClose={() => setOpenApp(null)}
+        onStatusChange={handleStatus}
+      />
+      <FormSessionDialog session={openForm} onClose={() => setOpenForm(null)} />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+        loading={deleting}
+        title="Delete this application?"
+        body={
+          <>
+            The record for <strong>{pendingDelete?.company_name || "this application"}</strong>
+            {pendingDelete?.role ? ` (${pendingDelete.role})` : ""} will be removed from your
+            history. The email that was already sent is unaffected.
+          </>
+        }
+      />
+    </div>
   );
 }

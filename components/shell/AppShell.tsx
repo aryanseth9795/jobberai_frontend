@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 import { getMe } from "@/lib/api";
 import { isAuthenticated } from "@/lib/auth";
+import { usePersistedFlag, writeFlag } from "@/lib/clientStore";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -21,33 +22,15 @@ const COLLAPSE_KEY = "jobber-sidebar-collapsed";
  * by the sidebar and the command palette together.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // Read from localStorage as an external store rather than through an effect,
+  // so the server render and the hydrating render agree on `false` and the
+  // stored value arrives without a cascading second render.
+  const collapsed = usePersistedFlag(COLLAPSE_KEY, false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
 
-  // Read after mount rather than during render: localStorage does not exist on
-  // the server, and reading it in an initialiser makes the first client render
-  // disagree with the markup it is hydrating.
-  useEffect(() => {
-    try {
-      setCollapsed(localStorage.getItem(COLLAPSE_KEY) === "1");
-    } catch {
-      /* private mode — the rail just starts expanded every time */
-    }
-  }, []);
-
-  const toggleCollapsed = useCallback(() => {
-    setCollapsed((current) => {
-      const next = !current;
-      try {
-        localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
-      } catch {
-        /* not persisting a sidebar width is not worth surfacing */
-      }
-      return next;
-    });
-  }, []);
+  const toggleCollapsed = useCallback(() => writeFlag(COLLAPSE_KEY, !collapsed), [collapsed]);
 
   useEffect(() => {
     if (!isAuthenticated()) return;
@@ -122,7 +105,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="min-w-0 flex-1">{children}</main>
       </div>
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      {/* Mounted only while open, so its query and highlight reset by being
+          discarded rather than by an effect that clears them. */}
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
   );
 }

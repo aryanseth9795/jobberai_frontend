@@ -7,6 +7,7 @@ import { LogOut, Menu, Monitor, Moon, Search, Settings, Sun } from "lucide-react
 
 import { cn } from "@/lib/cn";
 import { clearTokens } from "@/lib/auth";
+import { useClientValue } from "@/lib/clientStore";
 import { useTheme, type ThemeChoice } from "@/components/ThemeProvider";
 import { Button } from "@/components/ui";
 import { activeItem } from "./nav";
@@ -139,11 +140,12 @@ export function Topbar({
 }) {
   const pathname = usePathname();
   const current = activeItem(pathname);
-  const [modifier, setModifier] = useState("Ctrl");
 
-  // Read after mount: `navigator` does not exist during the server render, and
-  // guessing wrong renders a shortcut hint the user's keyboard does not have.
-  useEffect(() => setModifier(MODIFIER_LABEL()), []);
+  // `navigator` does not exist during the server render, and guessing wrong
+  // renders a shortcut hint the user's keyboard does not have. "Ctrl" is the
+  // server snapshot because it is the more common keyboard, so the correction
+  // on a Mac is the rarer of the two.
+  const modifier = useClientValue(MODIFIER_LABEL, "Ctrl");
 
   return (
     <header

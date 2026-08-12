@@ -77,6 +77,27 @@ async function redirectIfNotOnboarded(res: Response): Promise<boolean> {
  * token that was just minted, the problem is authorization rather than
  * expiry, and retrying in a loop would just hammer the endpoint.
  */
+/**
+ * `fetch`, with the browser's network error replaced by a sentence.
+ *
+ * A failed connection rejects with `TypeError: Failed to fetch` — six words
+ * naming an internal API, which is what the user reads in the toast when the
+ * backend is down. It says nothing about what happened or what to do, and it
+ * reaches every caller, so it is translated once here rather than in each
+ * `catch`.
+ *
+ * Only genuine network failures are rewritten. An HTTP error is a resolved
+ * response and never reaches this branch, so a real backend message is never
+ * swallowed.
+ */
+async function send(path: string, init: RequestInit, token: string | null): Promise<Response> {
+  try {
+    return await fetch(`${API_BASE}${path}`, { ...init, headers: buildHeaders(init, token) });
+  } catch {
+    throw new Error("Couldn't reach the server. Check your connection and try again.");
+  }
+}
+
 export async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
   let token = getAccessToken();
 
@@ -88,10 +109,7 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
     token = await refreshAccessToken();
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: buildHeaders(init, token),
-  });
+  const res = await send(path, init, token);
   if (res.status !== 401) {
     await redirectIfNotOnboarded(res);
     return res;
@@ -103,10 +121,7 @@ export async function authFetch(path: string, init: RequestInit = {}): Promise<R
   // network failed — hand back the original 401 rather than inventing one.
   if (!refreshed) return res;
 
-  const retried = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: buildHeaders(init, refreshed),
-  });
+  const retried = await send(path, init, refreshed);
   await redirectIfNotOnboarded(retried);
   return retried;
 }
@@ -380,17 +395,29 @@ export async function confirmBatch(
 // ── Applications ─────────────────────────────────────────────────────────
 
 // List past applications
+/** Columns the table can order by. Mirrors `SORTABLE_FIELDS` in
+ *  shared/mongodb.py — the server checks against its own list, so anything
+ *  else silently falls back to the default ordering. */
+export type JobSortField = "applied_at" | "company_name" | "role" | "status";
+
 export async function getJobs(params?: {
   skip?: number;
   limit?: number;
   status?: string;
   search?: string;
+  /** Sorting is a query parameter rather than something the client does to
+   *  the rows it holds: the list is paginated, so sorting in the browser
+   *  would reorder fifteen rows and present it as a sorted table. */
+  sortBy?: JobSortField;
+  sortDir?: 1 | -1;
 }): Promise<ApplicationsResponse> {
   const qs = new URLSearchParams();
   if (params?.skip !== undefined) qs.set("skip", String(params.skip));
   if (params?.limit !== undefined) qs.set("limit", String(params.limit));
   if (params?.status) qs.set("status", params.status);
   if (params?.search) qs.set("search", params.search);
+  if (params?.sortBy) qs.set("sort_by", params.sortBy);
+  if (params?.sortDir) qs.set("sort_dir", String(params.sortDir));
   return apiGet<ApplicationsResponse>(`/api/shared/jobs?${qs}`);
 }
 

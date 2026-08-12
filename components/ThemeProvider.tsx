@@ -1,10 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useSyncExternalStore } from "react";
+
+import { usePersistedChoice, write } from "@/lib/clientStore";
 
 export type ThemeChoice = "system" | "light" | "dark";
 
 const STORAGE_KEY = "jobber-theme";
+const CHOICES = ["system", "light", "dark"] as const;
 
 /**
  * Runs before first paint, inlined into <head>.
@@ -44,57 +47,41 @@ interface ThemeApi {
 
 const ThemeContext = createContext<ThemeApi | null>(null);
 
-function systemPrefersDark(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
 function apply(choice: ThemeChoice) {
   const root = document.documentElement;
   if (choice === "system") root.removeAttribute("data-theme");
   else root.setAttribute("data-theme", choice);
 }
 
+// The OS preference, as an external store. Subscribing rather than reading
+// once is what makes a "system" choice follow the OS flipping at sunset with
+// the tab already open.
+function subscribeSystem(onChange: () => void): () => void {
+  const query = window.matchMedia("(prefers-color-scheme: dark)");
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function readSystem(): "light" | "dark" {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // "system" on the server and on the first client render, so hydration
-  // matches the markup. The inline script has already put the right attribute
-  // on <html>; the effect below reconciles React's state with it.
-  const [choice, setChoiceState] = useState<ThemeChoice>("system");
-  const [resolved, setResolved] = useState<"light" | "dark">("light");
+  // Both of these render as their server snapshot during hydration, so the
+  // markup matches; the real values arrive on the same pass React does for
+  // any external store. The inline THEME_SCRIPT has meanwhile already put the
+  // correct attribute on <html>, so nothing flashes while that happens.
+  const choice = usePersistedChoice<ThemeChoice>(STORAGE_KEY, CHOICES, "system");
+  const system = useSyncExternalStore(subscribeSystem, readSystem, () => "light" as const);
 
-  useEffect(() => {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem(STORAGE_KEY);
-    } catch {
-      /* see THEME_SCRIPT */
-    }
-    const initial: ThemeChoice = stored === "light" || stored === "dark" ? stored : "system";
-    setChoiceState(initial);
-    setResolved(initial === "system" ? (systemPrefersDark() ? "dark" : "light") : initial);
-  }, []);
-
-  // Only matters while the choice is "system" — but the listener is cheap and
-  // unconditional, and the guard inside keeps an explicit choice from being
-  // overridden when the OS flips at sunset.
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => {
-      if (choice === "system") setResolved(query.matches ? "dark" : "light");
-    };
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, [choice]);
+  const resolved = choice === "system" ? system : choice;
 
   const setChoice = useCallback((next: ThemeChoice) => {
-    setChoiceState(next);
-    setResolved(next === "system" ? (systemPrefersDark() ? "dark" : "light") : next);
     apply(next);
-    try {
-      if (next === "system") localStorage.removeItem(STORAGE_KEY);
-      else localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* The theme still applies for this session; it just will not persist. */
-    }
+    // Writing notifies every reader, in this tab and — via the `storage`
+    // event — in the others. `system` is stored as the absence of a value so
+    // that the media query stays in charge.
+    write(STORAGE_KEY, next === "system" ? null : next);
   }, []);
 
   return (
