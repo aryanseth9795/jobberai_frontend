@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Neural AI Form Filler",
-  "version": "1.0.0",
-  "description": "AI-powered Google Form auto-fill for job applications",
+  "name": "JobberAI Form Filler",
+  "version": "2.0.0",
+  "description": "Sign in once and let JobberAI fill Google Form job applications from your profile.",
 
   "permissions": [
     "activeTab",
@@ -15,8 +15,14 @@
     "http://localhost:8000/*"
   ],
 
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
 
   "action": {
