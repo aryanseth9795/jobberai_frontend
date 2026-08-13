@@ -189,6 +189,160 @@ async function startGeneration() {
   renderReview(result);
 }
 
+// ── Review ──
+
+function escapeText(value) {
+  const node = document.createElement("span");
+  node.textContent = value ?? "";
+  return node.textContent;
+}
+
+function renderReview(payload) {
+  state.answers = payload.answers || [];
+  state.metadata = payload.metadata || {};
+
+  const pills = $("reviewPills");
+  pills.innerHTML = "";
+  for (const key of ["company", "role"]) {
+    const value = state.metadata[key];
+    if (!value || value === "Unknown") continue;
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.textContent = value;
+    pills.appendChild(pill);
+  }
+
+  const container = $("reviewCards");
+  container.innerHTML = "";
+  state.answers.forEach((answer, position) => {
+    container.appendChild(buildCard(answer, position));
+  });
+
+  show("review");
+}
+
+function buildCard(answer, position) {
+  const card = document.createElement("div");
+  card.className = "card";
+
+  const top = document.createElement("div");
+  top.className = "card-top";
+
+  const number = document.createElement("span");
+  number.className = "card-num";
+  number.textContent = `Q${position + 1}`;
+
+  const badge = document.createElement("span");
+  badge.className = "badge";
+  badge.textContent = answer.type || "text";
+
+  const spacer = document.createElement("span");
+  spacer.className = "spacer";
+
+  const regenerate = document.createElement("button");
+  regenerate.className = "icon-btn";
+  regenerate.title = "Rewrite this answer";
+  regenerate.textContent = "\u21BB";
+  regenerate.addEventListener("click", () => regenerateOne(answer, card, regenerate));
+
+  top.append(number, badge, spacer, regenerate);
+
+  const question = document.createElement("span");
+  question.className = "question";
+  question.textContent = escapeText(answer.question);
+
+  // A long answer gets a textarea; a short one an input. Building these as DOM
+  // nodes rather than an innerHTML template is what keeps a form question
+  // containing markup from being parsed as HTML.
+  const isLong = (answer.answer || "").length > 60;
+  const input = document.createElement(isLong ? "textarea" : "input");
+  if (!isLong) input.type = "text";
+  if (isLong) input.rows = Math.min(Math.ceil(answer.answer.length / 46), 6);
+  input.className = "answer-input";
+  input.value = answer.answer || "";
+  input.dataset.index = String(answer.index);
+  input.addEventListener("input", () => {
+    const target = state.answers.find((item) => item.index === answer.index);
+    if (target) target.answer = input.value;
+  });
+
+  card.append(top, question, input);
+  return card;
+}
+
+async function regenerateOne(answer, card, button) {
+  card.classList.add("regenerating");
+  button.disabled = true;
+
+  const result = await send("REGENERATE_ONE", {
+    index: answer.index,
+    question: answer.question,
+    type: answer.type,
+    options: answer.options || [],
+    company: state.metadata.company,
+    role: state.metadata.role,
+  });
+
+  card.classList.remove("regenerating");
+  button.disabled = false;
+
+  if (!result.success) {
+    handleError(result.error, null);
+    if (result.error?.name !== "AuthExpired" && result.error?.name !== "SetupIncomplete") {
+      window.alert(result.error?.message || "Couldn't rewrite that answer.");
+    }
+    return;
+  }
+
+  const target = state.answers.find((item) => item.index === answer.index);
+  if (target) target.answer = result.answer;
+  const input = card.querySelector(".answer-input");
+  if (input) input.value = result.answer;
+}
+
+async function confirmFill() {
+  const button = $("footer").querySelector("button");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Filling…";
+  }
+
+  const result = await send("FILL_WITH_ANSWERS", {
+    answers: state.answers.map((answer) => ({
+      index: answer.index,
+      question: answer.question,
+      answer: answer.answer,
+    })),
+  });
+
+  if (!result.success) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = `Confirm & fill (${state.answers.length})`;
+    }
+    handleError(result.error, null);
+    window.alert(result.error?.message || "Couldn't fill the form.");
+    return;
+  }
+
+  const failed = result.failed || [];
+  const total = result.filled + failed.length;
+
+  $("doneTitle").textContent = failed.length
+    ? `Filled ${result.filled} of ${total}`
+    : "Form filled";
+
+  $("doneDetail").textContent = failed.length
+    ? `Couldn't match: ${failed.join(", ")}. Fill those in yourself, then submit.`
+    : "Review the page and submit it yourself.";
+
+  show("done");
+
+  // Auto-close only on a clean fill. Closing on a partial one would hide the
+  // list of fields the user still has to handle.
+  if (!failed.length) setTimeout(() => window.close(), 1200);
+}
+
 // ── Panels ──
 
 async function openHistory() {
