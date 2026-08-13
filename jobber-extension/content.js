@@ -1,5 +1,20 @@
 // content.js — Runs on docs.google.com/forms/*
 
+// Exposed to tests at the bottom of the file, see edit (e) — NOT with `export`,
+// which is a SyntaxError in a classic content script. Google Forms' data-value
+// strings and the model's answers disagree over case, padding and trailing
+// punctuation often enough that exact comparison silently selects nothing.
+function normalizeOption(value) {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/\s+/g, " ").replace(/[.,;:!]+$/, "").toLowerCase();
+}
+
+function matchesOption(a, b) {
+  const left = normalizeOption(a);
+  const right = normalizeOption(b);
+  return left !== "" && left === right;
+}
+
 // ─────────────────────────────────────────
 // SCRAPER — Extract all questions from the form
 // ─────────────────────────────────────────
@@ -16,7 +31,9 @@ function scrapeFormQuestions() {
 
     if (!questionTextEl) return;
 
-    const questionText = questionTextEl.innerText.trim();
+    // innerText is unimplemented in jsdom (tests), so fall back to textContent
+    // there; real Chrome always has innerText and uses it unchanged.
+    const questionText = (questionTextEl.innerText ?? questionTextEl.textContent ?? "").trim();
     let fieldType = "text"; // default
 
     if (block.querySelector('input[type="text"], textarea')) {
@@ -91,68 +108,75 @@ function setReactTextareaValue(textareaEl, value) {
   textareaEl.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-function fillQuestion(questionObj, answer) {
+// Returns true when the field was actually populated. The old version returned
+// nothing and the caller reported success unconditionally, so a form that was
+// half filled still looked like a clean run.
+async function fillQuestion(questionObj, answer) {
   const block = questionObj.element;
-
-  if (!answer || answer.trim() === "") return;
+  if (!answer || !answer.trim()) return false;
+  if (!block || !block.isConnected) return false;
 
   switch (questionObj.type) {
-
     case "short_text": {
       const input = block.querySelector('input[type="text"]');
-      if (input) setReactInputValue(input, answer);
-      break;
+      if (!input) return false;
+      setReactInputValue(input, answer);
+      return true;
     }
 
     case "long_text": {
-      const textarea = block.querySelector('textarea');
-      if (textarea) setReactTextareaValue(textarea, answer);
-      break;
+      const textarea = block.querySelector("textarea");
+      if (!textarea) return false;
+      setReactTextareaValue(textarea, answer);
+      return true;
     }
 
     case "radio": {
-      const radioOptions = block.querySelectorAll('[role="radio"]');
-      radioOptions.forEach(opt => {
-        const label = opt.closest('[data-value]')?.getAttribute('data-value') || "";
-        if (label.toLowerCase().trim() === answer.toLowerCase().trim()) {
-          opt.click();
+      for (const option of block.querySelectorAll('[role="radio"]')) {
+        const label = option.closest("[data-value]")?.getAttribute("data-value");
+        if (matchesOption(label, answer)) {
+          option.click();
+          return true;
         }
-      });
-      break;
+      }
+      return false;
     }
 
     case "checkbox": {
-      const answersToCheck = answer.split(",").map(a => a.toLowerCase().trim());
-      const checkboxOptions = block.querySelectorAll('[role="checkbox"]');
-      checkboxOptions.forEach(opt => {
-        const label = opt.closest('[data-value]')?.getAttribute('data-value')?.toLowerCase().trim() || "";
-        if (answersToCheck.includes(label)) {
-          const isChecked = opt.getAttribute("aria-checked") === "true";
-          if (!isChecked) opt.click();
-        }
-      });
-      break;
+      const wanted = answer.split(",").filter((part) => part.trim());
+      let hits = 0;
+      for (const option of block.querySelectorAll('[role="checkbox"]')) {
+        const label = option.closest("[data-value]")?.getAttribute("data-value");
+        if (!wanted.some((want) => matchesOption(label, want))) continue;
+        if (option.getAttribute("aria-checked") !== "true") option.click();
+        hits += 1;
+      }
+      return hits > 0;
     }
 
     case "dropdown": {
       const listbox = block.querySelector('[role="listbox"]');
-      if (listbox) {
-        // Open dropdown
-        listbox.click();
-        setTimeout(() => {
-          // Find the option in the newly rendered portal/dropdown list
-          // Google forms usually renders dropdowns at the end of the body
-          const dropdownOptions = document.querySelectorAll('div[role="option"]');
-          dropdownOptions.forEach(opt => {
-            // Avoid selecting the first placeholder option
-            if (opt.innerText && opt.innerText.toLowerCase().trim() === answer.toLowerCase().trim()) {
-              opt.click();
-            }
-          });
-        }, 500); // Wait for the animation to render
+      if (!listbox) return false;
+      listbox.click();
+
+      // Poll rather than guess at an animation duration. The old code used a
+      // fire-and-forget setTimeout(500) and reported success before the option
+      // had been clicked — or when it was never found at all.
+      const deadline = Date.now() + 2000;
+      while (Date.now() < deadline) {
+        for (const option of document.querySelectorAll('div[role="option"]')) {
+          if (matchesOption(option.innerText, answer)) {
+            option.click();
+            return true;
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
-      break;
+      return false;
     }
+
+    default:
+      return false;
   }
 }
 
@@ -161,35 +185,69 @@ function fillQuestion(questionObj, answer) {
 // MESSAGE LISTENER — Receives commands from background.js
 // ─────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+// Guarded so the functions above can be imported by content.test.ts, where no
+// extension APIs exist. In Chrome this is always true.
+if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
-  if (message.action === "SCRAPE_FORM") {
-    const questions = scrapeFormQuestions();
+    if (message.action === "SCRAPE_FORM") {
+      const questions = scrapeFormQuestions();
 
-    // Strip DOM element references before sending over message channel
-    const payload = questions.map(q => ({
-      index: q.index,
-      question: q.question,
-      type: q.type,
-      options: q.options
-    }));
+      // Strip DOM element references before sending over message channel
+      const payload = questions.map(q => ({
+        index: q.index,
+        question: q.question,
+        type: q.type,
+        options: q.options
+      }));
 
-    sendResponse({ success: true, questions: payload });
+      sendResponse({ success: true, questions: payload });
 
-    // Save DOM references globally for filling later
-    window.__neuralMailerQuestions = questions;
-  }
+      // Save DOM references globally for filling later
+      window.__jobberQuestions = questions;
+    }
 
-  if (message.action === "FILL_FORM") {
-    const answers = message.answers; // [{ index, question, answer }, ...]
+    if (message.action === "FILL_FORM") {
+      (async () => {
+        let questions = window.__jobberQuestions || [];
 
-    answers.forEach(ans => {
-      const questionObj = window.__neuralMailerQuestions?.find(q => q.index === ans.index);
-      if (questionObj) fillQuestion(questionObj, ans.answer);
-    });
+        // A form that re-rendered between scrape and fill leaves detached nodes
+        // behind, and filling them is a silent no-op. Re-scrape and re-match.
+        if (questions.some((q) => !q.element?.isConnected)) {
+          questions = scrapeFormQuestions();
+          window.__jobberQuestions = questions;
+        }
 
-    sendResponse({ success: true });
-  }
+        let filled = 0;
+        const failed = [];
 
-  return true; // Keep message channel open for async sendResponse
-});
+        for (const answer of message.answers) {
+          const question = questions.find((q) => q.index === answer.index);
+          if (!question) {
+            failed.push(answer.question || `Question ${answer.index + 1}`);
+            continue;
+          }
+          if (await fillQuestion(question, answer.answer)) {
+            filled += 1;
+          } else {
+            failed.push(question.question || `Question ${answer.index + 1}`);
+          }
+        }
+
+        sendResponse({ success: true, filled, failed });
+      })();
+
+      return true; // async response
+    }
+
+    return true; // Keep message channel open for async sendResponse
+  });
+}
+
+// Chrome loads this as a classic content script, where `module` is undefined
+// and this block is skipped. Vitest resolves .js as CommonJS (package.json
+// declares no "type": "module"), so this is what lets content.test.ts reach
+// the functions above. Verified: named imports work through this pattern.
+if (typeof module !== "undefined") {
+  module.exports = { normalizeOption, matchesOption, scrapeFormQuestions, fillQuestion };
+}
