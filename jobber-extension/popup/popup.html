@@ -2,223 +2,136 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Neural AI Form Filler</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      width: 420px;
-      max-height: 560px;
-      background: #0d1117;
-      color: #e6edf3;
-      overflow-y: auto;
-    }
-
-    /* ── Header ── */
-    .header {
-      padding: 14px 16px 10px;
-      border-bottom: 1px solid #21262d;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      background: #0d1117;
-      z-index: 10;
-    }
-    .header h1 {
-      font-size: 15px;
-      font-weight: 700;
-      color: #22d3ee;
-    }
-    .header .meta {
-      font-size: 10px;
-      color: #8b949e;
-    }
-
-    /* ── Initial View ── */
-    .initial-view {
-      padding: 20px 16px;
-      text-align: center;
-    }
-    .initial-view p {
-      font-size: 12px;
-      color: #8b949e;
-      margin-bottom: 16px;
-    }
-
-    /* ── Buttons ── */
-    .btn-primary {
-      width: 100%;
-      padding: 10px;
-      background: #0891b2;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-    }
-    .btn-primary:hover { background: #0e7490; }
-    .btn-primary:active { transform: scale(0.98); }
-    .btn-primary:disabled { background: #3b3b3b; color: #666; cursor: not-allowed; }
-
-    .btn-confirm {
-      background: #059669;
-    }
-    .btn-confirm:hover { background: #047857; }
-
-    /* ── Status Bar ── */
-    #status {
-      padding: 8px 16px;
-      font-size: 12px;
-      text-align: center;
-      color: #8b949e;
-    }
-    #status.success { color: #34d399; }
-    #status.error   { color: #f87171; }
-    #status.loading { color: #fbbf24; }
-
-    /* ── Preview Panel ── */
-    .preview-panel {
-      padding: 0 16px 16px;
-    }
-    .preview-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 0 8px;
-      border-bottom: 1px solid #21262d;
-      margin-bottom: 10px;
-    }
-    .preview-header h2 {
-      font-size: 13px;
-      color: #e6edf3;
-      font-weight: 600;
-    }
-    .preview-header .count {
-      font-size: 11px;
-      color: #8b949e;
-      background: #21262d;
-      padding: 2px 8px;
-      border-radius: 10px;
-    }
-
-    /* ── Answer Card ── */
-    .answer-card {
-      background: #161b22;
-      border: 1px solid #21262d;
-      border-radius: 8px;
-      padding: 10px 12px;
-      margin-bottom: 8px;
-      transition: border-color 0.2s;
-    }
-    .answer-card:hover {
-      border-color: #30363d;
-    }
-    .answer-card .q-label {
-      font-size: 11px;
-      color: #8b949e;
-      margin-bottom: 2px;
-    }
-    .answer-card .question {
-      font-size: 12px;
-      font-weight: 600;
-      color: #e6edf3;
-      margin-bottom: 6px;
-      line-height: 1.4;
-    }
-    .answer-card .answer-input {
-      width: 100%;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #e6edf3;
-      font-size: 12px;
-      padding: 6px 8px;
-      font-family: 'Segoe UI', sans-serif;
-      resize: vertical;
-      min-height: 28px;
-      transition: border-color 0.2s;
-    }
-    .answer-card .answer-input:focus {
-      outline: none;
-      border-color: #22d3ee;
-    }
-    .answer-card .type-badge {
-      display: inline-block;
-      font-size: 9px;
-      color: #22d3ee;
-      background: rgba(34, 211, 238, 0.1);
-      padding: 1px 6px;
-      border-radius: 4px;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
-
-    /* ── Footer ── */
-    .footer {
-      padding: 10px 16px 14px;
-      border-top: 1px solid #21262d;
-      position: sticky;
-      bottom: 0;
-      background: #0d1117;
-    }
-
-    /* ── Metadata Pills ── */
-    .meta-pills {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
-    .pill {
-      font-size: 10px;
-      background: #21262d;
-      color: #8b949e;
-      padding: 3px 8px;
-      border-radius: 6px;
-    }
-    .pill strong { color: #e6edf3; }
-  </style>
+  <title>JobberAI Form Filler</title>
+  <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
 
-  <!-- Header -->
   <div class="header">
-    <h1>⚡ Neural AI</h1>
-    <span class="meta">Form Filler</span>
+    <span class="brand">Jobber<span>AI</span></span>
+    <span class="spacer"></span>
+    <button id="btnHistory" class="icon-btn" title="Recent fills" hidden>&#8635;</button>
+    <button id="btnSettings" class="icon-btn" title="Settings">&#9881;</button>
+    <button id="btnAccount" class="avatar" title="Account" hidden></button>
   </div>
 
-  <!-- Phase 1: Initial View -->
-  <div id="initialView" class="initial-view">
-    <p>Open a Google Form, then click below to auto-fill it with AI-generated answers.</p>
-    <button id="fillBtn" class="btn-primary">Fill This Form</button>
-  </div>
+  <div class="main">
 
-  <!-- Status -->
-  <div id="status"></div>
-
-  <!-- Phase 2: Preview Panel (hidden initially) -->
-  <div id="previewPanel" class="preview-panel" style="display:none;">
-
-    <div class="meta-pills" id="metaPills"></div>
-
-    <div class="preview-header">
-      <h2>Review Answers</h2>
-      <span class="count" id="answerCount"></span>
+    <div id="view-loading" class="view active">
+      <div class="centered"><div class="spinner"></div></div>
     </div>
 
-    <div id="answerList"></div>
+    <div id="view-signedOut" class="view">
+      <div class="centered">
+        <h2>Sign in to JobberAI</h2>
+        <p>One sign-in and the extension stays connected.</p>
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="username" placeholder="you@example.com" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+      </div>
+      <div id="signInError" class="msg error"></div>
+      <button id="btnSignIn" class="btn">Sign in</button>
+      <div style="text-align:center">
+        <button id="linkRegister" class="link">Create an account</button>
+      </div>
+    </div>
+
+    <div id="view-setupIncomplete" class="view">
+      <div class="centered">
+        <h2>Finish setting up</h2>
+        <p>JobberAI needs these before it can write answers for you.</p>
+      </div>
+      <ul id="setupSteps" class="steps"></ul>
+      <button id="btnOpenSetup" class="btn">Open setup</button>
+    </div>
+
+    <div id="view-notAForm" class="view">
+      <div class="centered">
+        <h2>No form here</h2>
+        <p>Open a Google Form, then click the JobberAI icon again.</p>
+      </div>
+    </div>
+
+    <div id="view-ready" class="view">
+      <div class="centered">
+        <h2>Ready to fill</h2>
+        <p>JobberAI reads the questions and drafts answers from your profile. You review before anything is entered.</p>
+      </div>
+    </div>
+
+    <div id="view-working" class="view">
+      <div class="centered">
+        <div class="spinner"></div>
+        <h2>Writing your answers</h2>
+        <p>You can close this popup — it keeps going.</p>
+      </div>
+    </div>
+
+    <div id="view-review" class="view">
+      <div id="reviewPills" class="pills"></div>
+      <div id="reviewCards" class="cards"></div>
+    </div>
+
+    <div id="view-done" class="view">
+      <div class="centered">
+        <h2 id="doneTitle">Form filled</h2>
+        <p id="doneDetail">Review the page and submit it yourself.</p>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Footer with Confirm button (hidden initially) -->
-  <div id="footer" class="footer" style="display:none;">
-    <button id="confirmBtn" class="btn-primary btn-confirm">✅ Confirm & Fill Form</button>
+  <div id="footer" class="footer"></div>
+
+  <!-- Panels -->
+  <div id="panel-history" class="panel">
+    <div class="panel-head">
+      <button class="icon-btn" data-close-panel="panel-history" title="Back">&#8592;</button>
+      <h2>Recent fills</h2>
+    </div>
+    <div id="historyBody" class="panel-body"></div>
   </div>
 
-  <script src="popup.js"></script>
+  <div id="panel-settings" class="panel">
+    <div class="panel-head">
+      <button class="icon-btn" data-close-panel="panel-settings" title="Back">&#8592;</button>
+      <h2>Settings</h2>
+    </div>
+    <div class="panel-body">
+      <div class="field">
+        <label for="apiBase">Backend URL</label>
+        <input id="apiBase" type="url" placeholder="http://localhost:8000" />
+        <span class="hint">Where the JobberAI API is running.</span>
+      </div>
+      <div class="field">
+        <label for="appBase">Web app URL</label>
+        <input id="appBase" type="url" placeholder="http://localhost:3000" />
+        <span class="hint">Used by the setup and account links.</span>
+      </div>
+      <div id="settingsMsg" class="msg"></div>
+      <button id="btnSaveSettings" class="btn">Save</button>
+    </div>
+  </div>
+
+  <div id="panel-account" class="panel">
+    <div class="panel-head">
+      <button class="icon-btn" data-close-panel="panel-account" title="Back">&#8592;</button>
+      <h2>Account</h2>
+    </div>
+    <div class="panel-body">
+      <div class="row">
+        <span class="row-title" id="accountEmail"></span>
+        <span class="row-meta">Signed in</span>
+      </div>
+      <button id="btnSignOut" class="btn btn-ghost">Sign out</button>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
 </body>
 </html>
