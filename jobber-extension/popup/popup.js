@@ -398,12 +398,27 @@ function requestHostAccess(origin) {
   });
 }
 
+// Accepts a bare host:port (prepending http://) as well as a full URL, and
+// rejects anything that isn't ultimately http(s) — including opaque-origin
+// schemes like "javascript:" or "data:", whose .origin is the truthy string
+// "null" and would otherwise slip past a plain `if (!origin)` guard.
 function originOf(value) {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return "";
+
+  const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed);
+  const candidate = hasScheme ? trimmed : `http://${trimmed}`;
+
+  let url;
   try {
-    return new URL(value).origin;
+    url = new URL(candidate);
   } catch {
-    return null;
+    return "";
   }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+
+  return url.origin;
 }
 
 async function saveSettings() {
@@ -416,18 +431,18 @@ async function saveSettings() {
     setMessage(message, "Enter a full backend URL, like http://localhost:8000");
     return;
   }
-  if (appBase && !originOf(appBase)) {
+  const appOrigin = appBase ? originOf(appBase) : "";
+  if (appBase && !appOrigin) {
     setMessage(message, "Enter a full web app URL, like http://localhost:3000");
     return;
   }
 
-  // Already-declared hosts are granted at install; contains() keeps us from
-  // showing a permission prompt for localhost, which never needs one.
-  const alreadyGranted = await new Promise((resolve) => {
-    chrome.permissions.contains({ origins: [`${apiOrigin}/*`] }, (has) => resolve(Boolean(has)));
-  });
+  $("btnSaveSettings").disabled = true;
 
-  if (!alreadyGranted) {
+  try {
+    // No awaits precede this call — see the comment above requestHostAccess.
+    // Requesting an origin already covered by host_permissions (e.g. the
+    // default http://localhost:8000) resolves true immediately, no prompt.
     const granted = await requestHostAccess(apiOrigin);
     if (!granted) {
       setMessage(
@@ -436,17 +451,21 @@ async function saveSettings() {
       );
       return;
     }
-  }
 
-  const result = await send("SAVE_CONFIG", { apiBase, appBase });
-  if (!result.success) {
-    setMessage(message, result.error?.message || "Couldn't save.");
-    return;
-  }
+    const result = await send("SAVE_CONFIG", { apiBase: apiOrigin, appBase: appOrigin });
+    if (!result.success) {
+      setMessage(message, result.error?.message || "Couldn't save.");
+      return;
+    }
 
-  state.config = result.config;
-  setMessage(message, "Saved.", "success");
-  setTimeout(() => setMessage(message, ""), 2000);
+    state.config = result.config;
+    setMessage(message, "Saved.", "success");
+    setTimeout(() => setMessage(message, ""), 2000);
+  } catch (error) {
+    setMessage(message, error?.message || "Couldn't save.");
+  } finally {
+    $("btnSaveSettings").disabled = false;
+  }
 }
 
 // ── Wiring ──
