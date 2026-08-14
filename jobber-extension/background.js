@@ -82,38 +82,48 @@ async function handleScrapeAndGenerate() {
   const tab = await activeTab();
   if (!tab) throw new Error("No active tab.");
 
-  await setFormState(tab.id, { status: "loading" });
+  try {
+    await setFormState(tab.id, { status: "loading" });
 
-  const scrape = await chrome.tabs.sendMessage(tab.id, { action: "SCRAPE_FORM" });
-  if (!scrape?.success || !scrape.questions.length) {
-    throw new Error("No questions found. Make sure the form has finished loading.");
+    const scrape = await chrome.tabs.sendMessage(tab.id, { action: "SCRAPE_FORM" });
+    if (!scrape?.success || !scrape.questions.length) {
+      throw new Error("No questions found. Make sure the form has finished loading.");
+    }
+
+    const data = await authFetch("/api/gform/fill-form", {
+      method: "POST",
+      body: JSON.stringify({
+        questions: scrape.questions,
+        form_url: tab.url || "",
+        form_title: tab.title || "",
+      }),
+    });
+
+    // Carry type AND options through. The review cards need the type for their
+    // badge, and REGENERATE_ONE needs the options — re-answering a radio question
+    // without its choices produces an answer that matches none of them, which
+    // then silently fails to fill (content.js §9.2).
+    const answers = data.answers.map((answer) => {
+      const question = scrape.questions.find((q) => q.index === answer.index);
+      return {
+        ...answer,
+        type: question?.type || "text",
+        options: question?.options || [],
+      };
+    });
+
+    const state = { status: "done", answers, metadata: data.metadata || {} };
+    await setFormState(tab.id, state);
+    return state;
+  } catch (error) {
+    // Own this tab's recovery here, against the tab id already captured above.
+    // The backend round-trip takes seconds; if the outer listener re-queried
+    // the active tab instead, the user could have switched tabs by the time
+    // the error lands, stranding this tab in "loading" forever while the
+    // error gets recorded against whichever tab is now active.
+    await setFormState(tab.id, { status: "error", error: toWireError(error) });
+    throw error;
   }
-
-  const data = await authFetch("/api/gform/fill-form", {
-    method: "POST",
-    body: JSON.stringify({
-      questions: scrape.questions,
-      form_url: tab.url || "",
-      form_title: tab.title || "",
-    }),
-  });
-
-  // Carry type AND options through. The review cards need the type for their
-  // badge, and REGENERATE_ONE needs the options — re-answering a radio question
-  // without its choices produces an answer that matches none of them, which
-  // then silently fails to fill (content.js §9.2).
-  const answers = data.answers.map((answer) => {
-    const question = scrape.questions.find((q) => q.index === answer.index);
-    return {
-      ...answer,
-      type: question?.type || "text",
-      options: question?.options || [],
-    };
-  });
-
-  const state = { status: "done", answers, metadata: data.metadata || {} };
-  await setFormState(tab.id, state);
-  return state;
 }
 
 async function handleRegenerateOne(payload) {
@@ -173,13 +183,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   handler(message)
     .then((result) => sendResponse({ success: true, ...result }))
-    .catch(async (error) => {
-      // Persist the failure so a popup that was closed during generation still
-      // finds out why when it reopens.
-      const tab = await activeTab();
-      if (tab && message.action === "SCRAPE_AND_GENERATE") {
-        await setFormState(tab.id, { status: "error", error: toWireError(error) });
-      }
+    .catch((error) => {
+      // sendResponse must fire on every path, or a popup left waiting on this
+      // callback hangs with a spinner forever. Per-handler state recovery
+      // (e.g. SCRAPE_AND_GENERATE's form_state write) happens inside the
+      // handler itself, against the tab id it already owns — not here.
       sendResponse({ success: false, error: toWireError(error) });
     });
 
