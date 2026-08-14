@@ -386,6 +386,69 @@ async function openHistory() {
   }
 }
 
+// ── Settings ──
+
+// chrome.permissions.request must run inside a user gesture, so it is called
+// straight from the click handler rather than after an await on storage.
+function requestHostAccess(origin) {
+  return new Promise((resolve) => {
+    chrome.permissions.request({ origins: [`${origin}/*`] }, (granted) =>
+      resolve(Boolean(granted)),
+    );
+  });
+}
+
+function originOf(value) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+async function saveSettings() {
+  const apiBase = $("apiBase").value.trim();
+  const appBase = $("appBase").value.trim();
+  const message = $("settingsMsg");
+
+  const apiOrigin = originOf(apiBase);
+  if (!apiOrigin) {
+    setMessage(message, "Enter a full backend URL, like http://localhost:8000");
+    return;
+  }
+  if (appBase && !originOf(appBase)) {
+    setMessage(message, "Enter a full web app URL, like http://localhost:3000");
+    return;
+  }
+
+  // Already-declared hosts are granted at install; contains() keeps us from
+  // showing a permission prompt for localhost, which never needs one.
+  const alreadyGranted = await new Promise((resolve) => {
+    chrome.permissions.contains({ origins: [`${apiOrigin}/*`] }, (has) => resolve(Boolean(has)));
+  });
+
+  if (!alreadyGranted) {
+    const granted = await requestHostAccess(apiOrigin);
+    if (!granted) {
+      setMessage(
+        message,
+        `JobberAI needs permission to reach ${apiOrigin}. The previous URL is still in use.`,
+      );
+      return;
+    }
+  }
+
+  const result = await send("SAVE_CONFIG", { apiBase, appBase });
+  if (!result.success) {
+    setMessage(message, result.error?.message || "Couldn't save.");
+    return;
+  }
+
+  state.config = result.config;
+  setMessage(message, "Saved.", "success");
+  setTimeout(() => setMessage(message, ""), 2000);
+}
+
 // ── Wiring ──
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -404,6 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
   $("btnSettings").addEventListener("click", () => openPanel("panel-settings"));
   $("btnAccount").addEventListener("click", () => openPanel("panel-account"));
   $("btnSignOut").addEventListener("click", signOut);
+  $("btnSaveSettings").addEventListener("click", saveSettings);
 
   for (const button of document.querySelectorAll("[data-close-panel]")) {
     button.addEventListener("click", () => closePanel(button.dataset.closePanel));
