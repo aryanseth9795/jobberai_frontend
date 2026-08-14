@@ -119,6 +119,39 @@ describe("findQuestionForAnswer", () => {
     expect(findQuestionForAnswer(questions, answer)).toBe(questions[1]);
   });
 
+  // The test above passes under index-first-with-text-fallback too, because
+  // index 5 matches nothing. This one only passes if text really wins: the
+  // index points at a valid but *different* question.
+  it("prefers the text match over a valid index pointing elsewhere", () => {
+    const answer = { index: 0, question: "Work authorization?" };
+    expect(findQuestionForAnswer(questions, answer)).toBe(questions[1]);
+  });
+
+  it("gives two identically-worded questions their own answer each", () => {
+    const dupes = [
+      { index: 0, question: "Additional comments" },
+      { index: 1, question: "Additional comments" },
+    ];
+    const used = new Set();
+
+    const first = findQuestionForAnswer(dupes, { index: 0, question: "Additional comments" }, used);
+    used.add(first);
+    const second = findQuestionForAnswer(dupes, { index: 1, question: "Additional comments" }, used);
+
+    expect(first).toBe(dupes[0]);
+    // Without the `used` guard this is dupes[0] again: one block filled twice,
+    // the other left blank, and the popup still reporting a complete fill.
+    expect(second).toBe(dupes[1]);
+  });
+
+  it("reports a miss rather than reusing a question already claimed", () => {
+    const one = [{ index: 0, question: "Additional comments" }];
+    const used = new Set(one);
+
+    const answer = { index: 0, question: "Additional comments" };
+    expect(findQuestionForAnswer(one, answer, used)).toBeNull();
+  });
+
   it("falls back to index when no question's text matches", () => {
     const answer = { index: 0, question: "A question from a different form" };
     expect(findQuestionForAnswer(questions, answer)).toBe(questions[0]);

@@ -22,12 +22,20 @@ function matchesOption(a, b) {
 // when no question's text matches. Matching on index alone is what let a
 // wrong-form fill (C2) or a reordered re-scrape silently type an answer into
 // the wrong field.
-function findQuestionForAnswer(questions, answer) {
+// `used` holds the question objects already claimed by earlier answers in this
+// fill pass. Without it, a form with two identically-worded blocks ("Additional
+// comments" twice, say) resolves both answers to the same first match: the block
+// is filled twice, `filled` counts two, nothing lands in `failed`, and the popup
+// reports a complete fill over a field that is still blank. Skipping claimed
+// questions pairs each answer with its own block, and honestly reports a miss
+// when there is no unclaimed block left.
+function findQuestionForAnswer(questions, answer, used = new Set()) {
   if (answer?.question) {
-    const byText = questions.find((q) => q.question === answer.question);
+    const byText = questions.find((q) => q.question === answer.question && !used.has(q));
     if (byText) return byText;
   }
-  return questions.find((q) => q.index === answer.index) || null;
+  const byIndex = questions.find((q) => q.index === answer.index);
+  return byIndex && !used.has(byIndex) ? byIndex : null;
 }
 
 // ─────────────────────────────────────────
@@ -240,13 +248,15 @@ if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
 
         let filled = 0;
         const failed = [];
+        const used = new Set();
 
         for (const answer of message.answers) {
-          const question = findQuestionForAnswer(questions, answer);
+          const question = findQuestionForAnswer(questions, answer, used);
           if (!question) {
             failed.push(answer.question || `Question ${answer.index + 1}`);
             continue;
           }
+          used.add(question);
           if (await fillQuestion(question, answer.answer)) {
             filled += 1;
           } else {
