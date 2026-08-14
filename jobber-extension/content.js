@@ -15,6 +15,21 @@ function matchesOption(a, b) {
   return left !== "" && left === right;
 }
 
+// Matches a stored answer back to a freshly (re-)scraped question. Prefers
+// the question text — stable across a reload, and the only thing that still
+// identifies a question correctly if the page re-rendered with the
+// questions in a different order — and falls back to positional index only
+// when no question's text matches. Matching on index alone is what let a
+// wrong-form fill (C2) or a reordered re-scrape silently type an answer into
+// the wrong field.
+function findQuestionForAnswer(questions, answer) {
+  if (answer?.question) {
+    const byText = questions.find((q) => q.question === answer.question);
+    if (byText) return byText;
+  }
+  return questions.find((q) => q.index === answer.index) || null;
+}
+
 // ─────────────────────────────────────────
 // SCRAPER — Extract all questions from the form
 // ─────────────────────────────────────────
@@ -213,7 +228,12 @@ if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
 
         // A form that re-rendered between scrape and fill leaves detached nodes
         // behind, and filling them is a silent no-op. Re-scrape and re-match.
-        if (questions.some((q) => !q.element?.isConnected)) {
+        // Also re-scrape when the cache is simply empty: a page reload gives
+        // the content script a fresh `window`, so a restored review (the
+        // draft survives in chrome.storage.local) has nothing cached to fill
+        // from. `[].some(...)` is false, so the old guard let this case slip
+        // through and report "Filled 0 of N" (C3).
+        if (!questions.length || questions.some((q) => !q.element?.isConnected)) {
           questions = scrapeFormQuestions();
           window.__jobberQuestions = questions;
         }
@@ -222,7 +242,7 @@ if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
         const failed = [];
 
         for (const answer of message.answers) {
-          const question = questions.find((q) => q.index === answer.index);
+          const question = findQuestionForAnswer(questions, answer);
           if (!question) {
             failed.push(answer.question || `Question ${answer.index + 1}`);
             continue;
@@ -249,5 +269,11 @@ if (typeof chrome !== "undefined" && chrome.runtime?.onMessage) {
 // declares no "type": "module"), so this is what lets content.test.ts reach
 // the functions above. Verified: named imports work through this pattern.
 if (typeof module !== "undefined") {
-  module.exports = { normalizeOption, matchesOption, scrapeFormQuestions, fillQuestion };
+  module.exports = {
+    normalizeOption,
+    matchesOption,
+    findQuestionForAnswer,
+    scrapeFormQuestions,
+    fillQuestion,
+  };
 }

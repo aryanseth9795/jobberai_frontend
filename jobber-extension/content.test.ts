@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { fillQuestion, matchesOption, normalizeOption, scrapeFormQuestions } from "./content.js";
+import {
+  fillQuestion,
+  findQuestionForAnswer,
+  matchesOption,
+  normalizeOption,
+  scrapeFormQuestions,
+} from "./content.js";
 
 describe("normalizeOption", () => {
   it("collapses case, whitespace and trailing punctuation", () => {
@@ -99,6 +105,33 @@ describe("scrapeFormQuestions", () => {
     const questions = scrapeFormQuestions();
 
     expect(questions.map((q) => q.index)).toEqual([0, 1]);
+  });
+});
+
+describe("findQuestionForAnswer", () => {
+  const questions = [
+    { index: 0, question: "First name" },
+    { index: 1, question: "Work authorization?" },
+  ];
+
+  it("matches by question text even when the index has shifted", () => {
+    const answer = { index: 5, question: "Work authorization?" };
+    expect(findQuestionForAnswer(questions, answer)).toBe(questions[1]);
+  });
+
+  it("falls back to index when no question's text matches", () => {
+    const answer = { index: 0, question: "A question from a different form" };
+    expect(findQuestionForAnswer(questions, answer)).toBe(questions[0]);
+  });
+
+  it("returns null when neither text nor index match anything", () => {
+    const answer = { index: 9, question: "Nothing like this exists" };
+    expect(findQuestionForAnswer(questions, answer)).toBeNull();
+  });
+
+  it("falls back to index when the answer carries no question text", () => {
+    const answer = { index: 1 };
+    expect(findQuestionForAnswer(questions, answer)).toBe(questions[1]);
   });
 });
 

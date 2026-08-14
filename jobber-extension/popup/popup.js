@@ -11,6 +11,7 @@ const state = {
   config: { apiBase: "", appBase: "" },
   answers: [],
   metadata: {},
+  tabId: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -189,6 +190,15 @@ async function startGeneration() {
   renderReview(result);
 }
 
+// Belt-and-braces escape from a stuck "working" view (I2): if the service
+// worker was reaped mid-generation, neither the success nor the error path
+// ever runs, so nothing else would get the user out of the spinner short of
+// closing the tab and waiting out STALE_MS.
+async function startOver() {
+  await send("CLEAR_FORM_STATE");
+  show("ready");
+}
+
 // ── Review ──
 
 function escapeText(value) {
@@ -200,6 +210,7 @@ function escapeText(value) {
 function renderReview(payload) {
   state.answers = payload.answers || [];
   state.metadata = payload.metadata || {};
+  state.tabId = payload.tabId ?? null;
 
   const pills = $("reviewPills");
   pills.innerHTML = "";
@@ -308,6 +319,7 @@ async function confirmFill() {
   }
 
   const result = await send("FILL_WITH_ANSWERS", {
+    tabId: state.tabId,
     answers: state.answers.map((answer) => ({
       index: answer.index,
       question: answer.question,
@@ -481,6 +493,8 @@ document.addEventListener("DOMContentLoaded", () => {
   $("btnOpenSetup").addEventListener("click", () => {
     chrome.tabs.create({ url: `${state.config.appBase}/onboarding` });
   });
+
+  $("btnStartOver").addEventListener("click", startOver);
 
   $("btnHistory").addEventListener("click", openHistory);
   $("btnSettings").addEventListener("click", () => openPanel("panel-settings"));
