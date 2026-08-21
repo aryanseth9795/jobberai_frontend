@@ -454,7 +454,7 @@ async function saveSettings() {
   try {
     // No awaits precede this call — see the comment above requestHostAccess.
     // Requesting an origin already covered by host_permissions (e.g. the
-    // default https://jobberai.aryantechie.in) resolves true immediately, no
+    // default https://app.jobberai.aryantechie.in) resolves true immediately, no
     // prompt. Pointing it back at a local backend does prompt, which is what
     // optional_host_permissions is there for.
     const granted = await requestHostAccess(apiOrigin);

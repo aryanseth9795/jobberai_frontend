@@ -11,7 +11,7 @@
 
   "host_permissions": [
     "https://docs.google.com/forms/*",
-    "https://jobberai.aryantechie.in/*"
+    "https://app.jobberai.aryantechie.in/*"
   ],
 
   "optional_host_permissions": [

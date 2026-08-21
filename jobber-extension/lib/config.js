@@ -7,8 +7,8 @@ const KEY = "jobber_config";
 // Both are the same origin now: nginx serves the app at / and the API under
 // /api/ on one host, so there is no separate api. subdomain to configure.
 export const DEFAULT_CONFIG = {
-  apiBase: "https://jobberai.aryantechie.in",
-  appBase: "https://jobberai.aryantechie.in",
+  apiBase: "https://app.jobberai.aryantechie.in",
+  appBase: "https://app.jobberai.aryantechie.in",
 };
 
 function normalize(url) {
