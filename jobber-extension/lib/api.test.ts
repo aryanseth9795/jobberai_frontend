@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_CONFIG } from "./config.js";
 import { installFakeChrome } from "./testing/fakeChrome";
 
 // api.js keeps its single-flight refresh promise in module scope, so each test
@@ -137,9 +138,12 @@ describe("authFetch", () => {
       throw new TypeError("Failed to fetch");
     }));
 
+    // DEFAULT_CONFIG rather than the literal host: the claim is that the
+    // error names *whatever* host is configured, so pinning a URL here just
+    // makes this test fail again the next time the default moves.
     await expect(api.authFetch("/api/auth/me")).rejects.toMatchObject({
       name: "NetworkError",
-      apiBase: "http://localhost:8000",
+      apiBase: DEFAULT_CONFIG.apiBase,
     });
   });
 });

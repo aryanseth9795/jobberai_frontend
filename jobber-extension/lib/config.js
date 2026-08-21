@@ -1,8 +1,14 @@
 const KEY = "jobber_config";
 
+// Production. `getConfig()` spreads stored config over these, so anyone who
+// set their own values in the settings panel keeps them — this only changes
+// what a fresh install points at.
+//
+// Both are the same origin now: nginx serves the app at / and the API under
+// /api/ on one host, so there is no separate api. subdomain to configure.
 export const DEFAULT_CONFIG = {
-  apiBase: "http://localhost:8000",
-  appBase: "http://localhost:3000",
+  apiBase: "https://jobberai.aryantechie.in",
+  appBase: "https://jobberai.aryantechie.in",
 };
 
 function normalize(url) {
