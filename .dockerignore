@@ -1,0 +1,20 @@
+node_modules
+.next
+out
+build
+
+.git
+.gitignore
+
+# .env.local carries this developer's NEXT_PUBLIC_API_URL. Next reads it
+# during `next build`, so leaving it in the context would let it override the
+# --build-arg and inline http://localhost:8000 into a production bundle.
+.env
+.env.*
+
+# The Chrome extension is loaded unpacked from the repo, not served by Next.
+jobber-extension
+
+.superpowers
+*.md
+coverage
